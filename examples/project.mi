@@ -1,0 +1,118 @@
+---
+title: Atlas Design System
+version: "2.4.1"
+status: stable
+owner:
+  name: Priya Nair
+  email: priya@example.com
+  team: Platform
+
+tags:
+  - design-system
+  - ui
+  - open-source
+
+stats:
+  components: 48
+  contributors: 12
+  downloads_monthly: 94200
+
+components:
+  - name: Button
+    status: stable
+    variants: [primary, secondary, ghost, danger]
+    since: "1.0.0"
+  - name: Modal
+    status: stable
+    variants: [default, fullscreen, drawer]
+    since: "1.2.0"
+  - name: DataTable
+    status: beta
+    variants: [paginated, infinite-scroll]
+    since: "2.1.0"
+  - name: DatePicker
+    status: experimental
+    variants: [single, range]
+    since: "2.4.0"
+
+changelog:
+  - version: "2.4.1"
+    date: "2026-03-10"
+    notes: Fix focus ring regression in Button and Modal components.
+  - version: "2.4.0"
+    date: "2026-02-18"
+    notes: Add DatePicker (experimental), update token naming for spacing.
+  - version: "2.3.0"
+    date: "2026-01-05"
+    notes: DataTable infinite-scroll variant, accessibility audit pass.
+
+install_cmd: "npm install @atlas/core"
+docs_url: "https://atlas.design/docs"
+---
+
+{{#each components}}
+    {{name}}
+
+    {{#each changelog}}
+        {{version}}
+    {{/each}}
+
+{{/each}}
+
+# {{title}} `v{{version}}`
+
+**Status:** {{status}} — maintained by [{{owner.name}}](mailto:{{owner.email}}) ({{owner.team}} team)
+
+**Tags:** {{tags}}
+
+---
+
+## At a Glance
+
+| Metric | Value |
+|--------|-------|
+| Components | {{stats.components}} |
+| Contributors | {{stats.contributors}} |
+| Monthly downloads | {{stats.downloads_monthly}} |
+
+---
+
+## Installation
+
+```sh
+{{install_cmd}}
+```
+
+Full documentation at {{docs_url}}.
+
+---
+
+## Components
+
+{{#each components}}
+### {{name}}
+
+- **Status:** `{{status}}`
+- **Available since:** v{{since}}
+- **Variants:** {{variants}}
+
+{{/each}}
+
+---
+
+## Changelog
+
+{{#each changelog}}
+#### v{{version}} — {{date}}
+
+{{notes}}
+
+{{/each}}
+
+---
+
+## Contributors
+
+{{#if owner.team}}
+This project is owned by the **{{owner.team}}** team. Reach out to {{owner.name}} at {{owner.email}} with questions.
+{{/if}}

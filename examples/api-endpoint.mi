@@ -1,0 +1,88 @@
+---
+endpoint: /api/v2/users
+method: POST
+auth: bearer
+summary: Create a new user account
+
+request:
+  content_type: application/json
+  fields:
+    - name: email
+      type: string
+      required: true
+      description: Must be unique across all accounts.
+    - name: password
+      type: string
+      required: true
+      description: Min 8 characters.
+    - name: role
+      type: string
+      required: false
+      description: "Defaults to: user"
+      allowed: [user, admin, viewer]
+    - name: metadata
+      type: object
+      required: false
+      description: Arbitrary key/value pairs attached to the account.
+
+responses:
+  - code: 201
+    description: User created successfully.
+    body: '{"id": "usr_01HZ...", "email": "...", "role": "user", "createdAt": "..."}'
+  - code: 400
+    description: Validation failed — missing or invalid fields.
+    body: '{"error": "validation_failed", "fields": [...]}'
+  - code: 409
+    description: Email address already in use.
+    body: '{"error": "email_taken"}'
+
+rate_limit:
+  requests: 100
+  window: "60s"
+  scope: per API key
+
+deprecated: false
+added_in: "v2.0"
+---
+
+# `{{method}} {{endpoint}}`
+
+{{summary}}
+
+**Auth:** `{{auth}}` token required
+**Added:** {{added_in}}
+{{#if deprecated}}
+> ⚠️ This endpoint is deprecated.
+{{/if}}
+
+---
+
+## Request
+
+**Content-Type:** `{{request.content_type}}`
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+{{#each request.fields}}| `{{name}}` | `{{type}}` | {{#if required}}yes{{else}}no{{/if}} | {{description}} |
+{{/each}}
+
+---
+
+## Responses
+
+{{#each responses}}
+### `{{code}}`
+
+{{description}}
+
+```json
+{{body}}
+```
+
+{{/each}}
+
+---
+
+## Rate Limiting
+
+**{{rate_limit.requests}} requests** per **{{rate_limit.window}}** ({{rate_limit.scope}}).
