@@ -112,10 +112,11 @@ function renderTemplate(template, ctx) {
     return -1;
   }
 
-  // 1. Extract fenced code blocks — they are never template targets.
-  // Inline code spans are intentionally NOT protected so that expressions
-  // like `v{{version}}` interpolate correctly; the backticks remain in output.
-  let out = template.replace(/```[\s\S]*?```/g, m => protect(m));
+  // 1. Template expressions interpolate everywhere — including inside fenced
+  // code blocks and inline code spans. The STX/ETX token mechanism already
+  // prevents double-evaluation of resolved values, so no upfront protection
+  // of code blocks is needed.
+  let out = template;
 
   // 2. {{#each key}} ... {{/each}}
   // Walk left-to-right; use depth counting to find each opening tag's true

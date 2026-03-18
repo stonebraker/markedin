@@ -398,9 +398,14 @@ describe('Double-evaluation protection', () => {
     assert.equal(render(src), '{{x}}');
   });
 
-  test('code fence in body with {{expr}} is preserved verbatim', () => {
+  test('code fence in body with {{expr}} is interpolated', () => {
+    const src = miWithBody('expr: hello', '```\n{{expr}}\n```');
+    assert.equal(render(src), '```\nhello\n```');
+  });
+
+  test('code fence with unknown {{expr}} renders empty string', () => {
     const src = miWithBody('', '```\n{{expr}}\n```');
-    assert.equal(render(src), '```\n{{expr}}\n```');
+    assert.equal(render(src), '```\n\n```');
   });
 
   test('inline code span with {{expr}} is interpolated (backticks are display formatting)', () => {
