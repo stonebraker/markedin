@@ -403,9 +403,14 @@ describe('Double-evaluation protection', () => {
     assert.equal(render(src), '```\n{{expr}}\n```');
   });
 
-  test('inline code span with {{expr}} is preserved verbatim', () => {
+  test('inline code span with {{expr}} is interpolated (backticks are display formatting)', () => {
+    const src = miWithBody('expr: hello', 'use `{{expr}}` here');
+    assert.equal(render(src), 'use `hello` here');
+  });
+
+  test('inline code span with unknown {{expr}} renders empty string inside backticks', () => {
     const src = miWithBody('', 'use `{{expr}}` here');
-    assert.equal(render(src), 'use `{{expr}}` here');
+    assert.equal(render(src), 'use `` here');
   });
 });
 
