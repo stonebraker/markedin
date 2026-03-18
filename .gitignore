@@ -1,0 +1,8 @@
+node_modules/
+
+# Internal design reference
+STYLE-GUIDE.html
+
+# Claude Code project files
+.claude/
+.DS_Store
