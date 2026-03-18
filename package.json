@@ -1,0 +1,16 @@
+{
+  "name": "markedin",
+  "version": "0.1.0",
+  "description": "Parser and CLI for the .mi (markedin) file format",
+  "main": "parse.js",
+  "scripts": {
+    "test": "node --test tests/parse.test.js"
+  },
+  "author": "Jason Stonebraker",
+  "license": "MIT",
+  "keywords": ["markedin", "mi", "frontmatter", "yaml", "markdown", "template"],
+  "dependencies": {
+    "js-yaml": "^4.1.1",
+    "marked": "^17.0.4"
+  }
+}
