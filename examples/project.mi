@@ -50,15 +50,6 @@ install_cmd: "npm install @atlas/core"
 docs_url: "https://atlas.design/docs"
 ---
 
-{{#each components}}
-    {{name}}
-
-    {{#each changelog}}
-        {{version}}
-    {{/each}}
-
-{{/each}}
-
 # {{title}} `v{{version}}`
 
 **Status:** {{status}} — maintained by [{{owner.name}}](mailto:{{owner.email}}) ({{owner.team}} team)
