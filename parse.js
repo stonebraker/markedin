@@ -70,34 +70,111 @@ function renderTemplate(template, ctx) {
   }
 
   function restore(str) {
+    // Reverse insertion order: a token whose value contains an earlier token
+    // (lower seq) unwraps correctly when the later token (higher seq) resolves
+    // first, exposing the earlier token for the next iteration.
     let out = str;
-    for (const [tok, val] of registry) {
+    for (const [tok, val] of [...registry.entries()].reverse()) {
       out = out.split(tok).join(val);
     }
     return out;
+  }
+
+  // Find the closing tag that matches the opening at depth 1, accounting for
+  // nested same-type opens. Returns index of the closing tag, or -1.
+  function findClose(str, nestedOpenRe, closeTag, from) {
+    let depth = 1;
+    let pos = from;
+    while (depth > 0) {
+      const closeIdx = str.indexOf(closeTag, pos);
+      if (closeIdx === -1) return -1;
+      nestedOpenRe.lastIndex = pos;
+      let nm;
+      while ((nm = nestedOpenRe.exec(str)) !== null && nm.index < closeIdx) {
+        depth++;
+      }
+      if (--depth === 0) return closeIdx;
+      pos = closeIdx + closeTag.length;
+    }
+    return -1;
+  }
+
+  // Find {{else}} that sits at the top level of content (not inside a nested
+  // #if block). Returns its index, or -1 if absent.
+  function findTopLevelElse(content) {
+    const re = /\{\{#if [\w.[\]]+\}\}|\{\{\/if\}\}|\{\{else\}\}/g;
+    let depth = 0, m;
+    while ((m = re.exec(content)) !== null) {
+      if (m[0].startsWith('{{#if ')) depth++;
+      else if (m[0] === '{{/if}}') depth--;
+      else if (m[0] === '{{else}}' && depth === 0) return m.index;
+    }
+    return -1;
   }
 
   // 1. Extract fenced and inline code blocks — they are never template targets
   let out = template.replace(/```[\s\S]*?```|`[^`\n]+`/g, m => protect(m));
 
   // 2. {{#each key}} ... {{/each}}
-  out = out.replace(/\{\{#each ([\w.[\]]+)\}\}([\s\S]*?)\{\{\/each\}\}/g, (_, path, inner) => {
-    const arr = resolvePath(ctx, path);
-    if (!Array.isArray(arr)) return protect('');
-    const result = arr.map((item, i) => {
-      const itemCtx = { ...ctx, this: item, '@index': i, '@first': i === 0, '@last': i === arr.length - 1 };
-      if (item && typeof item === 'object' && !Array.isArray(item)) Object.assign(itemCtx, item);
-      return renderTemplate(inner, itemCtx);
-    }).join('');
-    return protect(result);
-  });
+  // Walk left-to-right; use depth counting to find each opening tag's true
+  // matching close, so nested #each blocks are passed intact to the inner
+  // renderTemplate call where they execute in the correct item context.
+  {
+    const openRe = /\{\{#each ([\w.[\]]+)\}\}/g;
+    const nestedOpenRe = /\{\{#each [\w.[\]]+\}\}/g;
+    const closeTag = '{{/each}}';
+    let result = '';
+    let lastEnd = 0;
+    let m;
+    while ((m = openRe.exec(out)) !== null) {
+      const openEnd = m.index + m[0].length;
+      const closeIdx = findClose(out, nestedOpenRe, closeTag, openEnd);
+      if (closeIdx === -1) continue;
+      const inner = out.slice(openEnd, closeIdx);
+      result += out.slice(lastEnd, m.index);
+      const arr = resolvePath(ctx, m[1]);
+      if (!Array.isArray(arr)) {
+        result += protect('');
+      } else {
+        result += protect(arr.map((item, i) => {
+          const itemCtx = { ...ctx, this: item, '@index': i, '@first': i === 0, '@last': i === arr.length - 1 };
+          if (item && typeof item === 'object' && !Array.isArray(item)) Object.assign(itemCtx, item);
+          return renderTemplate(inner, itemCtx);
+        }).join(''));
+      }
+      lastEnd = closeIdx + closeTag.length;
+      openRe.lastIndex = lastEnd;
+    }
+    out = result + out.slice(lastEnd);
+  }
 
   // 3. {{#if key}} ... {{else}} ... {{/if}}
-  out = out.replace(/\{\{#if ([\w.[\]]+)\}\}([\s\S]*?)(?:\{\{else\}\}([\s\S]*?))?\{\{\/if\}\}/g, (_, path, truthy, falsy = '') => {
-    const val = resolvePath(ctx, path);
-    const isTruthy = val && (typeof val !== 'object' || Object.keys(val).length > 0) && (!Array.isArray(val) || val.length > 0);
-    return protect(renderTemplate(isTruthy ? truthy : falsy, ctx));
-  });
+  // Same depth-counting approach; {{else}} is located at the top level of the
+  // captured inner content so nested #if/else pairs are handled correctly.
+  {
+    const openRe = /\{\{#if ([\w.[\]]+)\}\}/g;
+    const nestedOpenRe = /\{\{#if [\w.[\]]+\}\}/g;
+    const closeTag = '{{/if}}';
+    let result = '';
+    let lastEnd = 0;
+    let m;
+    while ((m = openRe.exec(out)) !== null) {
+      const openEnd = m.index + m[0].length;
+      const closeIdx = findClose(out, nestedOpenRe, closeTag, openEnd);
+      if (closeIdx === -1) continue;
+      const inner = out.slice(openEnd, closeIdx);
+      const elseIdx = findTopLevelElse(inner);
+      const truthy = elseIdx === -1 ? inner : inner.slice(0, elseIdx);
+      const falsy  = elseIdx === -1 ? '' : inner.slice(elseIdx + '{{else}}'.length);
+      result += out.slice(lastEnd, m.index);
+      const val = resolvePath(ctx, m[1]);
+      const isTruthy = val && (typeof val !== 'object' || Object.keys(val).length > 0) && (!Array.isArray(val) || val.length > 0);
+      result += protect(renderTemplate(isTruthy ? truthy : falsy, ctx));
+      lastEnd = closeIdx + closeTag.length;
+      openRe.lastIndex = lastEnd;
+    }
+    out = result + out.slice(lastEnd);
+  }
 
   // 4. {{> partial_key}} — inline a frontmatter string value as-is
   out = out.replace(/\{\{> ?([\w.[\]]+)\}\}/g, (_, path) => {
