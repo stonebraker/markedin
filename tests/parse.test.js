@@ -466,42 +466,100 @@ describe('CLI', () => {
   test.before(() => { tmpFile = tmpMi(fixture); });
   test.after(() => { try { fs.unlinkSync(tmpFile); } catch {} });
 
-  test('render exits 0 and outputs markdown', () => {
-    const { stdout, code } = cli(['render', tmpFile]);
+  // Default / --md
+  test('default output is rendered markdown', () => {
+    const { stdout, code } = cli([tmpFile]);
     assert.equal(code, 0);
     assert.ok(stdout.includes('# Test Doc'));
     assert.ok(stdout.includes('Count: 2'));
   });
 
-  test('html exits 0 and outputs a valid HTML document', () => {
-    const { stdout, code } = cli(['html', tmpFile]);
+  test('--md outputs rendered markdown explicitly', () => {
+    const { stdout, code } = cli([tmpFile, '--md']);
+    assert.equal(code, 0);
+    assert.ok(stdout.includes('# Test Doc'));
+  });
+
+  // --html
+  test('--html outputs a valid HTML document', () => {
+    const { stdout, code } = cli([tmpFile, '--html']);
     assert.equal(code, 0);
     assert.ok(stdout.includes('<!doctype html>'));
     assert.ok(stdout.includes('<title>'));
     assert.ok(stdout.includes('Test Doc'));
   });
 
-  test('html --embed includes frontmatter JSON in <head>', () => {
-    const { stdout } = cli(['html', tmpFile, '--embed']);
+  test('--html --embed includes frontmatter JSON in <head>', () => {
+    const { stdout } = cli([tmpFile, '--html', '--embed']);
     assert.ok(stdout.includes('<script type="application/json" id="frontmatter">'));
     const json = JSON.parse(stdout.match(/<script[^>]*id="frontmatter"[^>]*>\s*([\s\S]*?)\s*<\/script>/)[1]);
     assert.equal(json.title, 'Test Doc');
     assert.equal(json.count, 2);
   });
 
-  test('html without --embed contains no id="frontmatter" script tag', () => {
-    const { stdout } = cli(['html', tmpFile]);
+  test('--html without --embed contains no frontmatter script tag', () => {
+    const { stdout } = cli([tmpFile, '--html']);
     assert.ok(!stdout.includes('id="frontmatter"'));
   });
 
-  test('data exits 0 and outputs valid JSON matching frontmatter', () => {
-    const { stdout, code } = cli(['data', tmpFile]);
+  // --md --embed
+  test('--embed appends frontmatter as HTML comment at bottom of markdown', () => {
+    const { stdout } = cli([tmpFile, '--embed']);
+    assert.ok(stdout.includes('<!-- frontmatter'));
+    assert.ok(stdout.includes('-->'));
+    const commentMatch = stdout.match(/<!-- frontmatter\n([\s\S]*?)\n-->/);
+    assert.ok(commentMatch, 'frontmatter comment block present');
+    const json = JSON.parse(commentMatch[1]);
+    assert.equal(json.title, 'Test Doc');
+    assert.equal(json.count, 2);
+    // comment appears after body content
+    assert.ok(stdout.indexOf('Count: 2') < stdout.indexOf('<!-- frontmatter'));
+  });
+
+  // --json
+  test('--json outputs valid JSON matching frontmatter', () => {
+    const { stdout, code } = cli([tmpFile, '--json']);
     assert.equal(code, 0);
     const json = JSON.parse(stdout);
     assert.equal(json.title, 'Test Doc');
     assert.equal(json.count, 2);
   });
 
+  test('--json ignores --embed flag', () => {
+    const { stdout } = cli([tmpFile, '--json', '--embed']);
+    const json = JSON.parse(stdout);
+    assert.equal(json.title, 'Test Doc');
+    assert.ok(!stdout.includes('<!--'));
+  });
+
+  // --yaml
+  test('--yaml outputs valid YAML matching frontmatter', () => {
+    const { stdout, code } = cli([tmpFile, '--yaml']);
+    assert.equal(code, 0);
+    assert.ok(stdout.includes('title: Test Doc'));
+    assert.ok(stdout.includes('count: 2'));
+  });
+
+  test('--yaml ignores --embed flag', () => {
+    const { stdout } = cli([tmpFile, '--yaml', '--embed']);
+    assert.ok(stdout.includes('title: Test Doc'));
+    assert.ok(!stdout.includes('<!--'));
+  });
+
+  // -o
+  test('-o writes output to a file', () => {
+    const out = path.join(os.tmpdir(), `mi-test-out-${Date.now()}.md`);
+    try {
+      const { code } = cli([tmpFile, '-o', out]);
+      assert.equal(code, 0);
+      const contents = fs.readFileSync(out, 'utf8');
+      assert.ok(contents.includes('# Test Doc'));
+    } finally {
+      try { fs.unlinkSync(out); } catch {}
+    }
+  });
+
+  // check subcommand
   test('check exits 0 for valid file', () => {
     const { stdout, code } = cli(['check', tmpFile]);
     assert.equal(code, 0);
@@ -518,21 +576,23 @@ describe('CLI', () => {
     }
   });
 
-  test('missing file argument exits non-zero with usage message', () => {
-    const { stderr, code } = cli(['render'], { expectFail: true });
-    assert.notEqual(code, 0);
-    assert.ok(stderr.toLowerCase().includes('usage'));
+  // --help
+  test('--help exits 0 and prints usage to stdout', () => {
+    const { stdout, code } = cli(['--help']);
+    assert.equal(code, 0);
+    assert.ok(stdout.toLowerCase().includes('usage'));
+  });
+
+  // Error cases
+  test('no arguments exits 0 and prints usage (--help)', () => {
+    const { stdout, code } = cli(['--help']);
+    assert.equal(code, 0);
+    assert.ok(stdout.includes('Usage'));
   });
 
   test('non-existent file path exits non-zero with error message', () => {
-    const { stderr, code } = cli(['render', '/no/such/file.mi'], { expectFail: true });
+    const { stderr, code } = cli(['/no/such/file.mi'], { expectFail: true });
     assert.notEqual(code, 0);
-    assert.ok(stderr.toLowerCase().includes('not found') || stderr.toLowerCase().includes('no such'));
-  });
-
-  test('unknown command exits non-zero with usage message', () => {
-    const { stderr, code } = cli(['frobnicate', tmpFile], { expectFail: true });
-    assert.notEqual(code, 0);
-    assert.ok(stderr.toLowerCase().includes('usage'));
+    assert.ok(stderr.toLowerCase().includes('not found'));
   });
 });

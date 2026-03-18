@@ -3,29 +3,71 @@
  * mi — markedin CLI
  *
  * Usage:
- *   mi render <file.mi>              — print rendered markdown to stdout
- *   mi html   <file.mi> [--embed]    — print full HTML document to stdout
- *                                      --embed: include frontmatter as JSON in <head>
- *                                               so agents can read structured data
- *                                               from the rendered page
- *   mi data   <file.mi>              — print parsed frontmatter as JSON
- *   mi check  <file.mi>              — validate frontmatter parses cleanly
+ *   mi <file.mi> [--md|--html|--json|--yaml] [--embed] [-o <file>]
+ *   mi check <file.mi>
+ *   mi --help
  */
 
-const fs = require('fs');
+const fs   = require('fs');
 const path = require('path');
+const yaml = require('js-yaml');
 const { parse, render } = require('./parse');
 const { marked } = require('marked');
 
-const [,, cmd, filePath, ...flags] = process.argv;
-const embedData = flags.includes('--embed');
+const args = process.argv.slice(2);
 
 function usage() {
-  console.error('Usage: mi <render|html|data|check> <file.mi> [--embed]');
-  process.exit(1);
+  console.log(`
+Usage:
+  mi <file.mi> [options]    Render a .mi file
+  mi check <file.mi>        Validate frontmatter and report structure
+  mi --help                 Show this help
+
+Output format (default: --md):
+  --md      Rendered markdown
+  --html    Full HTML document
+  --json    Frontmatter as JSON
+  --yaml    Frontmatter as YAML
+
+Options:
+  --embed   Append frontmatter as a comment in the output
+            For --md: HTML comment at the bottom
+            For --html: <script type="application/json"> in <head>
+            Ignored when used with --json or --yaml
+  -o <file> Write output to a file instead of stdout
+  `.trim());
+  process.exit(0);
 }
 
-if (!cmd || !filePath) usage();
+if (args.includes('--help') || args.includes('-h')) usage();
+
+// check subcommand
+if (args[0] === 'check') {
+  const filePath = args[1];
+  if (!filePath) {
+    console.error('Usage: mi check <file.mi>');
+    process.exit(1);
+  }
+  const abs = path.resolve(filePath);
+  if (!fs.existsSync(abs)) {
+    console.error(`File not found: ${abs}`);
+    process.exit(1);
+  }
+  try {
+    const { data, body } = parse(fs.readFileSync(abs, 'utf8'));
+    const keys = Object.keys(data);
+    console.log(`✓ Frontmatter OK — ${keys.length} key(s)`);
+    console.log(`✓ Body: ${body.split('\n').length} line(s)`);
+  } catch (e) {
+    console.error(`✗ Parse error: ${e.message}`);
+    process.exit(1);
+  }
+  process.exit(0);
+}
+
+// Resolve file path (first non-flag argument)
+const filePath = args.find(a => !a.startsWith('-'));
+if (!filePath) usage();
 
 const abs = path.resolve(filePath);
 if (!fs.existsSync(abs)) {
@@ -33,22 +75,32 @@ if (!fs.existsSync(abs)) {
   process.exit(1);
 }
 
-const source = fs.readFileSync(abs, 'utf8');
+const flags = new Set(args.filter(a => a.startsWith('-')));
+const outIdx = args.indexOf('-o');
+const outFile = outIdx !== -1 ? args[outIdx + 1] : null;
 
-switch (cmd) {
-  case 'render': {
-    process.stdout.write(render(source));
-    break;
-  }
-  case 'html': {
-    const { data } = parse(source);
-    const markdown = render(source);
-    const body = marked.parse(markdown);
-    const title = data.title || path.basename(abs, '.mi');
-    const dataBlock = embedData
-      ? `\n<script type="application/json" id="frontmatter">\n${JSON.stringify(data, null, 2)}\n</script>`
-      : '';
-    const html = `<!doctype html>
+const isHtml  = flags.has('--html');
+const isJson  = flags.has('--json');
+const isYaml  = flags.has('--yaml');
+const embed   = flags.has('--embed');
+
+const source = fs.readFileSync(abs, 'utf8');
+const { data } = parse(source);
+
+let output;
+
+if (isJson) {
+  output = JSON.stringify(data, null, 2) + '\n';
+} else if (isYaml) {
+  output = yaml.dump(data);
+} else if (isHtml) {
+  const markdown = render(source);
+  const body = marked.parse(markdown);
+  const title = data.title || path.basename(abs, '.mi');
+  const dataBlock = embed
+    ? `\n<script type="application/json" id="frontmatter">\n${JSON.stringify(data, null, 2)}\n</script>`
+    : '';
+  output = `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
@@ -74,26 +126,19 @@ switch (cmd) {
 ${body}
 </body>
 </html>`;
-    process.stdout.write(html);
-    break;
+} else {
+  // --md (default)
+  output = render(source);
+  if (embed) {
+    output = output.trimEnd()
+      + '\n\n<!-- frontmatter\n'
+      + JSON.stringify(data, null, 2)
+      + '\n-->\n';
   }
-  case 'data': {
-    const { data } = parse(source);
-    console.log(JSON.stringify(data, null, 2));
-    break;
-  }
-  case 'check': {
-    try {
-      const { data, body } = parse(source);
-      const keys = Object.keys(data);
-      console.log(`✓ Frontmatter OK — ${keys.length} key(s): ${keys.join(', ')}`);
-      console.log(`✓ Body: ${body.split('\n').length} line(s)`);
-    } catch (e) {
-      console.error(`✗ Parse error: ${e.message}`);
-      process.exit(1);
-    }
-    break;
-  }
-  default:
-    usage();
+}
+
+if (outFile) {
+  fs.writeFileSync(path.resolve(outFile), output, 'utf8');
+} else {
+  process.stdout.write(output);
 }
