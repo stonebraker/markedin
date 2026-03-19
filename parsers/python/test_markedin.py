@@ -8,7 +8,7 @@ import unittest
 
 import markdown
 
-from markedin import parse, render, resolve_path
+from markedin import parse, render, render_html, render_html_frag, resolve_path
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -415,6 +415,67 @@ class TestHTMLRendering(unittest.TestCase):
         self.assertIn("<strong>Status:</strong> ok", html)
         self.assertIn("<hr", html)
         self.assertIn("Body text.", html)
+
+
+class TestRenderHtmlFrag(unittest.TestCase):
+    def test_returns_html_without_wrapper(self):
+        src = mi_with_body("title: Hello", "# {{title}}")
+        html = render_html_frag(src)
+        self.assertIn("<h1>Hello</h1>", html)
+        self.assertNotIn("<!doctype", html)
+        self.assertNotIn("<head>", html)
+
+    def test_table_extension(self):
+        src = mi_with_body("", "| A | B |\n|---|---|\n| 1 | 2 |")
+        html = render_html_frag(src)
+        self.assertIn("<table>", html)
+
+
+class TestRenderHtml(unittest.TestCase):
+    def test_full_document(self):
+        src = mi_with_body("title: My Page", "# {{title}}\n\nHello world.")
+        html = render_html(src)
+        self.assertIn("<!doctype html>", html)
+        self.assertIn("<title>My Page</title>", html)
+        self.assertIn("<h1>My Page</h1>", html)
+        self.assertIn("Hello world.", html)
+
+    def test_includes_styles(self):
+        src = mi_with_body("title: T", "text")
+        html = render_html(src)
+        self.assertIn("<style>", html)
+        self.assertIn("max-width: 720px", html)
+
+    def test_embed_false_no_script(self):
+        src = mi_with_body("title: T", "text")
+        html = render_html(src)
+        self.assertNotIn("application/json", html)
+
+    def test_embed_true_includes_frontmatter(self):
+        src = mi_with_body("title: My Doc\nversion: 2", "# {{title}}")
+        html = render_html(src, embed=True)
+        self.assertIn('<script type="application/json" id="frontmatter">', html)
+        self.assertIn('"title": "My Doc"', html)
+        self.assertIn('"version": 2', html)
+
+    def test_empty_title_fallback(self):
+        src = mi_with_body("key: val", "text")
+        html = render_html(src)
+        self.assertIn("<title></title>", html)
+
+
+class TestRenderEmbed(unittest.TestCase):
+    def test_md_embed(self):
+        src = mi_with_body("title: Hello", "# {{title}}")
+        out = render(src, embed=True)
+        self.assertIn("<!-- frontmatter", out)
+        self.assertIn('"title": "Hello"', out)
+        self.assertIn("-->", out)
+
+    def test_md_no_embed(self):
+        src = mi_with_body("title: Hello", "# {{title}}")
+        out = render(src)
+        self.assertNotIn("<!-- frontmatter", out)
 
 
 if __name__ == "__main__":
