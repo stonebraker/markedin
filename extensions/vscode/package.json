@@ -54,7 +54,7 @@
     ]
   },
   "scripts": {
-    "sync-parser": "cp ../markedin/parse.js ./parse.js",
+    "sync-parser": "cp ../../parsers/js/parse.js ./parse.js",
     "prepackage": "npm run sync-parser"
   },
   "dependencies": {
