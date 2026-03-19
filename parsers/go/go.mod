@@ -1,4 +1,4 @@
-module github.com/agenticsystems/markedin/parsers/go
+module github.com/stonebraker/markedin/parsers/go
 
 go 1.24.6
 

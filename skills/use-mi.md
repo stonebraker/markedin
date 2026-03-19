@@ -8,7 +8,7 @@ Three parser implementations exist, all with the same behavior:
 
 | Language | Location | Import |
 |---|---|---|
-| Go | `parsers/go/` | `github.com/agenticsystems/markedin/parsers/go` |
+| Go | `parsers/go/` | `github.com/stonebraker/markedin/parsers/go` |
 | Python | `parsers/python/markedin.py` | `import markedin` |
 | Node | `parsers/js/parse.js` | `require('markedin-parser')` |
 

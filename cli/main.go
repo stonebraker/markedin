@@ -13,7 +13,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/agenticsystems/markedin/parsers/go"
+	"github.com/stonebraker/markedin/parsers/go"
 	"gopkg.in/yaml.v3"
 )
 
