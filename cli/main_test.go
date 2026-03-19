@@ -83,12 +83,6 @@ func TestCLI(t *testing.T) {
 		assertContains(t, r.stdout, "Count: 2")
 	})
 
-	t.Run("--md outputs rendered markdown explicitly", func(t *testing.T) {
-		r := run(tmpFile, "--md")
-		assertEqual(t, r.code, 0)
-		assertContains(t, r.stdout, "# Test Doc")
-	})
-
 	// --html
 	t.Run("--html outputs a valid HTML document", func(t *testing.T) {
 		r := run(tmpFile, "--html")

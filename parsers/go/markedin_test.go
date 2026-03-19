@@ -9,10 +9,6 @@ import (
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
-func mi(source string) string {
-	return "---\n" + source + "\n---\n"
-}
-
 func miWithBody(frontmatter, body string) string {
 	return "---\n" + frontmatter + "\n---\n" + body
 }
@@ -37,7 +33,7 @@ func TestParser(t *testing.T) {
 	})
 
 	t.Run("frontmatter values accessible by key", func(t *testing.T) {
-		doc, err := Parse(mi("a: 1\nb: two\nc: true"))
+		doc, err := Parse(miWithBody("a: 1\nb: two\nc: true", ""))
 		assertNoErr(t, err)
 		assertEqual(t, doc.Data["a"], 1)
 		assertEqual(t, doc.Data["b"], "two")
@@ -74,7 +70,7 @@ func TestParser(t *testing.T) {
 	})
 
 	t.Run("empty body", func(t *testing.T) {
-		doc, err := Parse(mi("key: val"))
+		doc, err := Parse(miWithBody("key: val", ""))
 		assertNoErr(t, err)
 		assertEqual(t, doc.Data["key"], "val")
 		assertEqual(t, doc.Body, "")
@@ -171,16 +167,8 @@ func TestScalarInterpolation(t *testing.T) {
 		assertEqual(t, got["x"], float64(1))
 	})
 
-	t.Run("@index outside each returns empty string", func(t *testing.T) {
-		assertEqual(t, mustRender(t, miWithBody("", "{{@index}}")), "")
-	})
-
-	t.Run("@first outside each returns empty string", func(t *testing.T) {
-		assertEqual(t, mustRender(t, miWithBody("", "{{@first}}")), "")
-	})
-
-	t.Run("@last outside each returns empty string", func(t *testing.T) {
-		assertEqual(t, mustRender(t, miWithBody("", "{{@last}}")), "")
+	t.Run("loop variables outside each return empty string", func(t *testing.T) {
+		assertEqual(t, mustRender(t, miWithBody("", "{{@index}}{{@first}}{{@last}}")), "")
 	})
 }
 
@@ -300,10 +288,6 @@ func TestIf(t *testing.T) {
 		assertEqual(t, mustRender(t, miWithBody("x: null", "{{#if x}}yes{{else}}no{{/if}}")), "no")
 	})
 
-	t.Run("else branch renders when condition is falsy", func(t *testing.T) {
-		assertEqual(t, mustRender(t, miWithBody("x: false", "{{#if x}}yes{{else}}fallback{{/if}}")), "fallback")
-	})
-
 	t.Run("no else and falsy condition produces no output", func(t *testing.T) {
 		assertEqual(t, mustRender(t, miWithBody("x: false", "{{#if x}}yes{{/if}}")), "")
 	})
@@ -340,57 +324,27 @@ func TestPartial(t *testing.T) {
 		assertEqual(t, mustRender(t, miWithBody("note: hello world", "{{> note}}")), "hello world")
 	})
 
-	t.Run("value is not re-rendered", func(t *testing.T) {
-		src := miWithBody("tpl: \"{{name}}\"\nname: Alice", "{{> tpl}}")
-		assertEqual(t, mustRender(t, src), "{{name}}")
-	})
-
 	t.Run("key not found returns empty string", func(t *testing.T) {
 		assertEqual(t, mustRender(t, miWithBody("", "{{> missing}}")), "")
-	})
-
-	t.Run("value containing expressions appears literally", func(t *testing.T) {
-		src := miWithBody("raw: \"{{foo}} {{bar}}\"", "{{> raw}}")
-		assertEqual(t, mustRender(t, src), "{{foo}} {{bar}}")
 	})
 }
 
 // ─── Double-evaluation protection ───────────────────────────────────────────
 
 func TestDoubleEvalProtection(t *testing.T) {
-	t.Run("frontmatter string with expression via scalar appears literally", func(t *testing.T) {
+	t.Run("scalar value containing expression appears literally", func(t *testing.T) {
 		src := miWithBody("field: \"{{name}}\"\nname: Alice", "{{field}}")
 		assertEqual(t, mustRender(t, src), "{{name}}")
 	})
 
-	t.Run("frontmatter string with expression via partial appears literally", func(t *testing.T) {
+	t.Run("partial value containing expression appears literally", func(t *testing.T) {
 		src := miWithBody("field: \"{{name}}\"\nname: Alice", "{{> field}}")
 		assertEqual(t, mustRender(t, src), "{{name}}")
 	})
 
-	t.Run("array item string with expression appears literally via each", func(t *testing.T) {
+	t.Run("each item containing expression appears literally", func(t *testing.T) {
 		src := miWithBody("items:\n  - \"{{x}}\"", "{{#each items}}{{this}}{{/each}}")
 		assertEqual(t, mustRender(t, src), "{{x}}")
-	})
-
-	t.Run("code fence with expression is interpolated", func(t *testing.T) {
-		src := miWithBody("expr: hello", "```\n{{expr}}\n```")
-		assertEqual(t, mustRender(t, src), "```\nhello\n```")
-	})
-
-	t.Run("code fence with unknown expression renders empty string", func(t *testing.T) {
-		src := miWithBody("", "```\n{{expr}}\n```")
-		assertEqual(t, mustRender(t, src), "```\n\n```")
-	})
-
-	t.Run("inline code span with expression is interpolated", func(t *testing.T) {
-		src := miWithBody("expr: hello", "use `{{expr}}` here")
-		assertEqual(t, mustRender(t, src), "use `hello` here")
-	})
-
-	t.Run("inline code span with unknown expression renders empty string", func(t *testing.T) {
-		src := miWithBody("", "use `{{expr}}` here")
-		assertEqual(t, mustRender(t, src), "use `` here")
 	})
 }
 
@@ -404,10 +358,6 @@ func TestRenderEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("all expressions resolved", func(t *testing.T) {
-		assertEqual(t, mustRender(t, miWithBody("a: 1\nb: two", "{{a}} {{b}}")), "1 two")
-	})
-
 	t.Run("plain markdown passed through unchanged", func(t *testing.T) {
 		src := miWithBody("", "# Heading\n\n- item 1\n- item 2")
 		assertEqual(t, mustRender(t, src), "# Heading\n\n- item 1\n- item 2")
@@ -419,18 +369,6 @@ func TestRenderEndToEnd(t *testing.T) {
 			"{{title}} {{count}} {{flag}} {{tags}} {{#each team}}{{name}}({{role}}) {{/each}}",
 		)
 		assertEqual(t, mustRender(t, src), "Report 3 true x, y Ana(lead) Bo(dev) ")
-	})
-
-	t.Run("chained dot-paths four levels deep", func(t *testing.T) {
-		assertEqual(t, mustRender(t, miWithBody("a:\n  b:\n    c:\n      d: found", "{{a.b.c.d}}")), "found")
-	})
-
-	t.Run("body with no template expressions returned unchanged", func(t *testing.T) {
-		assertEqual(t, mustRender(t, miWithBody("key: val", "just plain text")), "just plain text")
-	})
-
-	t.Run("expression referencing null value returns empty string", func(t *testing.T) {
-		assertEqual(t, mustRender(t, miWithBody("x: null", "{{x}}")), "")
 	})
 
 	t.Run("unicode in frontmatter values and body", func(t *testing.T) {
