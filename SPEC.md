@@ -101,11 +101,18 @@ Useful for reusable prose snippets stored in the frontmatter.
 ## CLI
 
 ```sh
-node mi.js render <file.mi>   # render to markdown stdout
-node mi.js html   <file.mi>   # render to full HTML document stdout
-node mi.js data   <file.mi>   # print frontmatter as JSON
-node mi.js check  <file.mi>   # validate parse
+mi <file.mi>                  # render to markdown (default)
+mi <file.mi> --md             # render to markdown (explicit)
+mi <file.mi> --html           # render to full HTML document
+mi <file.mi> --json           # print frontmatter as JSON
+mi <file.mi> --yaml           # print frontmatter as YAML
+mi <file.mi> --embed          # append frontmatter as a comment in output
+mi <file.mi> -o <file>        # write output to a file instead of stdout
+mi check <file.mi>            # validate frontmatter and report structure
+mi --help                     # show usage
 ```
+
+The `--embed` flag appends frontmatter metadata to the output: as an HTML comment for `--md`, or as a `<script type="application/json">` in `<head>` for `--html`. It is ignored with `--json` and `--yaml`.
 
 ---
 

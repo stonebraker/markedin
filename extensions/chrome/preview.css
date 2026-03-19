@@ -1,0 +1,81 @@
+:root {
+  color-scheme: light dark;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body.mi-preview {
+  max-width: 740px;
+  margin: 0 auto;
+  padding: 3rem 1.75rem 5rem;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 1.0625rem;
+  line-height: 1.7;
+  color: #1f2937;
+  background: #fff;
+  -webkit-font-smoothing: antialiased;
+}
+body.mi-preview h1, body.mi-preview h2, body.mi-preview h3, body.mi-preview h4 {
+  letter-spacing: -.02em;
+  line-height: 1.25;
+  margin-top: 2.25rem;
+  margin-bottom: .5rem;
+  color: #111827;
+  font-weight: 600;
+}
+body.mi-preview h1 { font-size: 2rem; margin-top: 0; }
+body.mi-preview h2 { font-size: 1.35rem; margin-top: 2.5rem; padding-bottom: .4rem; border-bottom: 1px solid #e5e7eb; }
+body.mi-preview h3 { font-size: 1.1rem; }
+body.mi-preview h4 { font-size: 1rem; }
+body.mi-preview p  { margin-bottom: 1rem; }
+body.mi-preview ul, body.mi-preview ol { padding-left: 1.5rem; margin-bottom: 1rem; }
+body.mi-preview li { margin-bottom: .25rem; }
+body.mi-preview code {
+  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: .875em;
+  background: #f3f4f6;
+  color: #2563eb;
+  padding: .1em .35em;
+  border-radius: 3px;
+}
+body.mi-preview pre {
+  background: #f3f4f6;
+  border-radius: 6px;
+  padding: 1.25rem;
+  overflow-x: auto;
+  margin-bottom: 1.25rem;
+  font-size: .9rem;
+  line-height: 1.6;
+}
+body.mi-preview pre code { background: none; padding: 0; color: inherit; }
+body.mi-preview blockquote {
+  border-left: 3px solid #d1d5db;
+  padding: .5rem 1rem;
+  color: #6b7280;
+  margin-bottom: 1rem;
+}
+body.mi-preview table { border-collapse: collapse; width: 100%; margin-bottom: 1.25rem; font-size: .9375rem; }
+body.mi-preview th {
+  text-align: left;
+  padding: .5rem .75rem;
+  font-size: .8125rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: #6b7280;
+  border-bottom: 2px solid #e5e7eb;
+}
+body.mi-preview td { padding: .5rem .75rem; border-bottom: 1px solid #f3f4f6; }
+body.mi-preview a { color: #2563eb; text-underline-offset: 3px; }
+body.mi-preview hr { border: none; border-top: 1px solid #e5e7eb; margin: 2rem 0; }
+body.mi-preview img { max-width: 100%; border-radius: 4px; }
+@media (prefers-color-scheme: dark) {
+  body.mi-preview { color: #e5e7eb; background: #1a1a1a; }
+  body.mi-preview h1, body.mi-preview h2, body.mi-preview h3, body.mi-preview h4 { color: #f3f4f6; }
+  body.mi-preview h2 { border-color: #374151; }
+  body.mi-preview code { background: #2a2a2a; color: #93c5fd; }
+  body.mi-preview pre { background: #2a2a2a; }
+  body.mi-preview blockquote { border-color: #4b5563; color: #9ca3af; }
+  body.mi-preview th { color: #9ca3af; border-color: #374151; }
+  body.mi-preview td { border-color: #2a2a2a; }
+  body.mi-preview hr { border-color: #374151; }
+  body.mi-preview a { color: #93c5fd; }
+}

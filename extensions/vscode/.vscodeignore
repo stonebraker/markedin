@@ -1,0 +1,6 @@
+.vscode/
+.vscodeignore
+**/*.map
+**/.eslintrc*
+**/tsconfig*
+**/jsconfig*
