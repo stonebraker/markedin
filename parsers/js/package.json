@@ -1,5 +1,5 @@
 {
-  "name": "markedin",
+  "name": "markedin-parser",
   "version": "0.1.0",
   "description": "Parse and render .mi (markedin) files — YAML frontmatter + templated Markdown",
   "main": "parse.js",
