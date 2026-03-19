@@ -1,10 +1,22 @@
 {
   "name": "markedin",
   "version": "0.1.0",
-  "description": "Parser and CLI for the .mi (markedin) file format",
+  "description": "Parse and render .mi (markedin) files — YAML frontmatter + templated Markdown",
   "main": "parse.js",
+  "files": [
+    "parse.js"
+  ],
   "scripts": {
     "test": "node --test tests/parse.test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stonebraker/markedin.git",
+    "directory": "parsers/js"
+  },
+  "homepage": "https://github.com/stonebraker/markedin#readme",
+  "bugs": {
+    "url": "https://github.com/stonebraker/markedin/issues"
   },
   "author": "Jason Stonebraker",
   "license": "MIT",
