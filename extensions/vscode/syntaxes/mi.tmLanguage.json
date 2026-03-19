@@ -1,0 +1,47 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "markedin",
+  "scopeName": "source.mi",
+  "fileTypes": ["mi"],
+  "patterns": [
+    { "include": "#frontmatter" },
+    { "include": "#template-expr" },
+    { "include": "text.html.markdown" }
+  ],
+  "repository": {
+    "frontmatter": {
+      "begin": "\\A(---\\s*)$",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.frontmatter.begin.mi" }
+      },
+      "end": "^(---\\s*)$",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.frontmatter.end.mi" }
+      },
+      "contentName": "meta.embedded.block.yaml",
+      "patterns": [
+        { "include": "#template-expr" },
+        { "include": "source.yaml" }
+      ]
+    },
+    "template-expr": {
+      "patterns": [
+        {
+          "comment": "block helpers: {{#each}}, {{#if}}, {{/each}}, {{/if}}",
+          "name": "keyword.control.template.mi",
+          "match": "\\{\\{[#/][^}]*\\}\\}"
+        },
+        {
+          "comment": "partial: {{> key}}",
+          "name": "keyword.control.template.mi",
+          "match": "\\{\\{>\\s*[^}]+\\}\\}"
+        },
+        {
+          "comment": "interpolation: {{key}} {{key.path}} {{array[0]}}",
+          "name": "variable.other.template.mi",
+          "match": "\\{\\{[^#/!>][^}]*\\}\\}"
+        }
+      ]
+    }
+  }
+}

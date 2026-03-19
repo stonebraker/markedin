@@ -1,0 +1,64 @@
+{
+  "name": "markedin",
+  "displayName": "markedin",
+  "description": "Preview and syntax highlighting for .mi (markedin) files",
+  "version": "0.1.0",
+  "publisher": "agenticsystems",
+  "engines": { "vscode": "^1.74.0" },
+  "categories": ["Languages", "Visualization"],
+  "activationEvents": ["onLanguage:mi"],
+  "main": "./extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "mi",
+        "aliases": ["markedin", "mi"],
+        "extensions": [".mi"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "mi",
+        "scopeName": "source.mi",
+        "path": "./syntaxes/mi.tmLanguage.json",
+        "embeddedLanguages": {
+          "meta.embedded.block.yaml": "yaml",
+          "meta.embedded.block.markdown": "markdown"
+        }
+      }
+    ],
+    "commands": [
+      {
+        "command": "markedin.preview",
+        "title": "markedin: Open Preview",
+        "icon": "$(open-preview)"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "markedin.preview",
+          "when": "resourceExtname == .mi",
+          "group": "navigation"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "markedin.preview",
+        "key": "ctrl+shift+v",
+        "mac": "cmd+shift+v",
+        "when": "resourceExtname == .mi && editorTextFocus"
+      }
+    ]
+  },
+  "scripts": {
+    "sync-parser": "cp ../markedin/parse.js ./parse.js",
+    "prepackage": "npm run sync-parser"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.0",
+    "marked": "^9.0.0"
+  }
+}
