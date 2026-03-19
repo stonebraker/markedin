@@ -154,4 +154,4 @@ for path in glob.glob("tasks/*.mi"):
 
 ## Note on browser extensions
 
-The same parser runs in browser extensions (`extensions/chrome/parse.js`, `extensions/firefox/parse.js`) with a browser-compatible yaml import. The HTML rendering functions (`renderHtmlFrag`, `renderHtml`) are not available in the browser copies as they depend on the `marked` library.
+The same parser runs in browser extensions (`extensions/chrome/parse.js`, `extensions/firefox/parse.js`) with a browser-compatible yaml import. The browser copies include `parse`, `render` (with embed), `renderTemplate`, and `resolvePath`. They do not include `renderHtmlFrag` or `renderHtml` — in the browser, markdown-to-HTML conversion is handled by `content.js` using a bundled `marked.min.js`.
