@@ -5,12 +5,15 @@
 package markedin
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
 
+	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/extension"
 	"gopkg.in/yaml.v3"
 )
 
@@ -46,13 +49,105 @@ func Parse(source string) (*Document, error) {
 }
 
 // Render parses source and returns the rendered Markdown with all template
-// expressions resolved.
-func Render(source string) (string, error) {
+// expressions resolved. If embed is true, frontmatter is appended as an
+// HTML comment.
+func Render(source string, opts ...RenderOption) (string, error) {
+	cfg := applyOpts(opts)
 	doc, err := Parse(source)
 	if err != nil {
 		return "", err
 	}
-	return renderTemplate(doc.Body, doc.Data), nil
+	out := renderTemplate(doc.Body, doc.Data)
+	if cfg.embed {
+		b, _ := json.MarshalIndent(doc.Data, "", "  ")
+		out = strings.TrimRight(out, "\n") + "\n\n<!-- frontmatter\n" + string(b) + "\n-->\n"
+	}
+	return out, nil
+}
+
+// RenderHTMLFrag parses source and returns an HTML fragment (no document wrapper).
+func RenderHTMLFrag(source string) (string, error) {
+	md, err := Render(source)
+	if err != nil {
+		return "", err
+	}
+	return markdownToHTML(md)
+}
+
+// RenderHTML parses source and returns a full HTML document.
+// If embed is true, frontmatter is included as a JSON script tag in <head>.
+func RenderHTML(source string, opts ...RenderOption) (string, error) {
+	cfg := applyOpts(opts)
+	doc, err := Parse(source)
+	if err != nil {
+		return "", err
+	}
+	rendered := renderTemplate(doc.Body, doc.Data)
+	body, err := markdownToHTML(rendered)
+	if err != nil {
+		return "", err
+	}
+	title, _ := doc.Data["title"].(string)
+	dataBlock := ""
+	if cfg.embed {
+		b, _ := json.MarshalIndent(doc.Data, "", "  ")
+		dataBlock = fmt.Sprintf("\n<script type=\"application/json\" id=\"frontmatter\">\n%s\n</script>", string(b))
+	}
+	return fmt.Sprintf(`<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>%s</title>%s
+<style>
+  body { max-width: 720px; margin: 0 auto; padding: 3rem 1.5rem; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 1.0625rem; line-height: 1.65; color: #1f2937; }
+  h1, h2, h3 { color: #111827; letter-spacing: -.02em; }
+  h1 { font-size: 2rem; margin-bottom: .5rem; }
+  h2 { font-size: 1.4rem; margin-top: 2.5rem; }
+  h3 { font-size: 1.1rem; margin-top: 2rem; }
+  code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: .875em; background: #f3f4f6; padding: .1em .35em; border-radius: 3px; }
+  pre { background: #f3f4f6; border-radius: 6px; padding: 1.25rem; overflow-x: auto; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; width: 100%%; }
+  th, td { text-align: left; padding: .5rem .75rem; border-bottom: 1px solid #e5e7eb; }
+  th { font-size: .8125rem; text-transform: uppercase; letter-spacing: .05em; color: #6b7280; }
+  a { color: #2563eb; }
+  hr { border: none; border-top: 1px solid #e5e7eb; margin: 2.5rem 0; }
+</style>
+</head>
+<body>
+%s
+</body>
+</html>`, title, dataBlock, body), nil
+}
+
+// RenderOption configures rendering behavior.
+type RenderOption func(*renderConfig)
+
+type renderConfig struct {
+	embed bool
+}
+
+// WithEmbed enables embedding frontmatter in the output.
+func WithEmbed() RenderOption {
+	return func(c *renderConfig) { c.embed = true }
+}
+
+func applyOpts(opts []RenderOption) renderConfig {
+	var cfg renderConfig
+	for _, o := range opts {
+		o(&cfg)
+	}
+	return cfg
+}
+
+func markdownToHTML(markdown string) (string, error) {
+	var buf bytes.Buffer
+	md := goldmark.New(goldmark.WithExtensions(extension.Table))
+	if err := md.Convert([]byte(markdown), &buf); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
 }
 
 // ─── regex ──────────────────────────────────────────────────────────────────
