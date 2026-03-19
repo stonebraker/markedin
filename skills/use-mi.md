@@ -152,6 +152,6 @@ for path in glob.glob("tasks/*.mi"):
         print(f"{path}: blocked on {data.get('blocked_by', 'unknown')}")
 ```
 
-## Note on browser extensions
+## Browser extensions
 
-The same parser runs in browser extensions (`extensions/chrome/parse.js`, `extensions/firefox/parse.js`) with a browser-compatible yaml import. The browser copies include `parse`, `render` (with embed), `renderTemplate`, and `resolvePath`. They do not include `renderHtmlFrag` or `renderHtml` — in the browser, markdown-to-HTML conversion is handled by `content.js` using a bundled `marked.min.js`.
+Browser extensions for Chrome (`extensions/chrome/`) and Firefox (`extensions/firefox/`) let humans view `.mi` files as rendered pages directly in the browser. These are end-user tools — agents should use the parser libraries or CLI instead.
