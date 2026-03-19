@@ -1,6 +1,7 @@
 node_modules/
 *.vsix
 cli/mi
+cli/cli
 
 # Internal design reference
 STYLE-GUIDE.html
