@@ -8,6 +8,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -15,6 +16,8 @@ import (
 	"strings"
 
 	"github.com/agenticsystems/markedin/parsers/go"
+	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/extension"
 	"gopkg.in/yaml.v3"
 )
 
@@ -100,6 +103,13 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Render error: %s\n", err)
 			os.Exit(1)
 		}
+		var htmlBuf bytes.Buffer
+		md := goldmark.New(goldmark.WithExtensions(extension.Table))
+		if err := md.Convert([]byte(rendered), &htmlBuf); err != nil {
+			fmt.Fprintf(os.Stderr, "Markdown conversion error: %s\n", err)
+			os.Exit(1)
+		}
+		rendered = htmlBuf.String()
 		title, _ := doc.Data["title"].(string)
 		if title == "" {
 			title = strings.TrimSuffix(filepath.Base(filePath), ".mi")
