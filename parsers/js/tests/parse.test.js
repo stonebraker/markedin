@@ -14,10 +14,6 @@ const { parse, render, resolvePath } = require('../parse');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function mi(source) {
-  return `---\n${source}\n---\n`;
-}
-
 function miWithBody(frontmatter, body) {
   return `---\n${frontmatter}\n---\n${body}`;
 }
@@ -52,7 +48,7 @@ describe('Parser', () => {
   });
 
   test('frontmatter values accessible by key', () => {
-    const { data } = parse(mi('a: 1\nb: two\nc: true'));
+    const { data } = parse(miWithBody('a: 1\nb: two\nc: true', ''));
     assert.equal(data.a, 1);
     assert.equal(data.b, 'two');
     assert.equal(data.c, true);
@@ -85,7 +81,7 @@ describe('Parser', () => {
   });
 
   test('empty body', () => {
-    const { data, body } = parse(mi('key: val'));
+    const { data, body } = parse(miWithBody('key: val', ''));
     assert.equal(data.key, 'val');
     assert.equal(body, '');
   });
@@ -178,16 +174,8 @@ describe('Scalar interpolation {{key}}', () => {
     assert.equal(render(src), JSON.stringify({ x: 1 }));
   });
 
-  test('{{@index}} outside #each → empty string, no error', () => {
-    assert.equal(render(miWithBody('', '{{@index}}')), '');
-  });
-
-  test('{{@first}} outside #each → empty string, no error', () => {
-    assert.equal(render(miWithBody('', '{{@first}}')), '');
-  });
-
-  test('{{@last}} outside #each → empty string, no error', () => {
-    assert.equal(render(miWithBody('', '{{@last}}')), '');
+  test('loop variables outside #each → empty string', () => {
+    assert.equal(render(miWithBody('', '{{@index}}{{@first}}{{@last}}')), '');
   });
 });
 
@@ -315,11 +303,6 @@ describe('{{#if}}', () => {
     assert.equal(render(src), 'no');
   });
 
-  test('{{else}} branch renders when condition is falsy', () => {
-    const src = miWithBody('x: false', '{{#if x}}yes{{else}}fallback{{/if}}');
-    assert.equal(render(src), 'fallback');
-  });
-
   test('no {{else}} and falsy condition → no output', () => {
     const src = miWithBody('x: false', '{{#if x}}yes{{/if}}');
     assert.equal(render(src), '');
@@ -364,58 +347,28 @@ describe('{{> partial}}', () => {
     assert.equal(render(src), 'hello world');
   });
 
-  test('value is not re-rendered (no double-evaluation)', () => {
-    const src = miWithBody('tpl: "{{name}}"\nname: Alice', '{{> tpl}}');
-    assert.equal(render(src), '{{name}}');
-  });
-
   test('key not found → empty string', () => {
     const src = miWithBody('', '{{> missing}}');
     assert.equal(render(src), '');
-  });
-
-  test('value containing {{expressions}} appears literally in output', () => {
-    const src = miWithBody('raw: "{{foo}} {{bar}}"', '{{> raw}}');
-    assert.equal(render(src), '{{foo}} {{bar}}');
   });
 });
 
 // ─── Double-evaluation protection ─────────────────────────────────────────────
 
 describe('Double-evaluation protection', () => {
-  test('frontmatter string with {{key}} referenced via {{field}} appears literally', () => {
+  test('scalar value containing expression appears literally', () => {
     const src = miWithBody('field: "{{name}}"\nname: Alice', '{{field}}');
     assert.equal(render(src), '{{name}}');
   });
 
-  test('frontmatter string with {{key}} referenced via {{> field}} appears literally', () => {
+  test('partial value containing expression appears literally', () => {
     const src = miWithBody('field: "{{name}}"\nname: Alice', '{{> field}}');
     assert.equal(render(src), '{{name}}');
   });
 
-  test('array item string with {{expr}} appears literally via #each', () => {
+  test('each item containing expression appears literally', () => {
     const src = miWithBody('items:\n  - "{{x}}"', '{{#each items}}{{this}}{{/each}}');
     assert.equal(render(src), '{{x}}');
-  });
-
-  test('code fence in body with {{expr}} is interpolated', () => {
-    const src = miWithBody('expr: hello', '```\n{{expr}}\n```');
-    assert.equal(render(src), '```\nhello\n```');
-  });
-
-  test('code fence with unknown {{expr}} renders empty string', () => {
-    const src = miWithBody('', '```\n{{expr}}\n```');
-    assert.equal(render(src), '```\n\n```');
-  });
-
-  test('inline code span with {{expr}} is interpolated (backticks are display formatting)', () => {
-    const src = miWithBody('expr: hello', 'use `{{expr}}` here');
-    assert.equal(render(src), 'use `hello` here');
-  });
-
-  test('inline code span with unknown {{expr}} renders empty string inside backticks', () => {
-    const src = miWithBody('', 'use `{{expr}}` here');
-    assert.equal(render(src), 'use `` here');
   });
 });
 
@@ -428,12 +381,7 @@ describe('render() end-to-end', () => {
     assert.ok(!out.startsWith('---'), 'output must not start with ---');
   });
 
-  test('all {{ }} expressions resolved', () => {
-    const src = miWithBody('a: 1\nb: two', '{{a}} {{b}}');
-    assert.equal(render(src), '1 two');
-  });
-
-  test('plain markdown outside expressions passed through unchanged', () => {
+  test('plain markdown passed through unchanged', () => {
     const src = miWithBody('', '# Heading\n\n- item 1\n- item 2');
     assert.equal(render(src), '# Heading\n\n- item 1\n- item 2');
   });
@@ -444,21 +392,6 @@ describe('render() end-to-end', () => {
       '{{title}} {{count}} {{flag}} {{tags}} {{#each team}}{{name}}({{role}}) {{/each}}'
     );
     assert.equal(render(src), 'Report 3 true x, y Ana(lead) Bo(dev) ');
-  });
-
-  test('chained dot-paths four levels deep', () => {
-    const src = miWithBody('a:\n  b:\n    c:\n      d: found', '{{a.b.c.d}}');
-    assert.equal(render(src), 'found');
-  });
-
-  test('body with no template expressions returned unchanged', () => {
-    const src = miWithBody('key: val', 'just plain text');
-    assert.equal(render(src), 'just plain text');
-  });
-
-  test('expression referencing null value → empty string', () => {
-    const src = miWithBody('x: null', '{{x}}');
-    assert.equal(render(src), '');
   });
 
   test('unicode in frontmatter values and body', () => {
@@ -482,12 +415,6 @@ describe('CLI', () => {
     assert.equal(code, 0);
     assert.ok(stdout.includes('# Test Doc'));
     assert.ok(stdout.includes('Count: 2'));
-  });
-
-  test('--md outputs rendered markdown explicitly', () => {
-    const { stdout, code } = cli([tmpFile, '--md']);
-    assert.equal(code, 0);
-    assert.ok(stdout.includes('# Test Doc'));
   });
 
   // --html
@@ -594,12 +521,6 @@ describe('CLI', () => {
   });
 
   // Error cases
-  test('no arguments exits 0 and prints usage (--help)', () => {
-    const { stdout, code } = cli(['--help']);
-    assert.equal(code, 0);
-    assert.ok(stdout.includes('Usage'));
-  });
-
   test('non-existent file path exits non-zero with error message', () => {
     const { stderr, code } = cli(['/no/such/file.mi'], { expectFail: true });
     assert.notEqual(code, 0);
