@@ -10,7 +10,7 @@ Three parser implementations exist, all with the same behavior:
 |---|---|---|
 | Go | `parsers/go/` | `github.com/agenticsystems/markedin/parsers/go` |
 | Python | `parsers/python/markedin.py` | `import markedin` |
-| Node | `parsers/js/parse.js` | `require('./parse')` |
+| Node | `parsers/js/parse.js` | `require('markedin-parser')` |
 
 A Go CLI is also available at `cli/main.go` (`mi` binary).
 
