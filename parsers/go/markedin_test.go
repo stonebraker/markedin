@@ -3,6 +3,7 @@ package markedin
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -437,6 +438,81 @@ func TestRenderEndToEnd(t *testing.T) {
 	})
 }
 
+// ─── RenderHTMLFrag ─────────────────────────────────────────────────────────
+
+func TestRenderHTMLFrag(t *testing.T) {
+	t.Run("returns HTML without document wrapper", func(t *testing.T) {
+		html, err := RenderHTMLFrag(miWithBody("title: Hello", "# {{title}}"))
+		assertNoErr(t, err)
+		assertContains(t, html, "<h1>Hello</h1>")
+		assertNotContains(t, html, "<!doctype")
+		assertNotContains(t, html, "<head>")
+	})
+
+	t.Run("table extension enabled", func(t *testing.T) {
+		html, err := RenderHTMLFrag(miWithBody("", "| A | B |\n|---|---|\n| 1 | 2 |"))
+		assertNoErr(t, err)
+		assertContains(t, html, "<table>")
+	})
+}
+
+// ─── RenderHTML ─────────────────────────────────────────────────────────────
+
+func TestRenderHTML(t *testing.T) {
+	t.Run("full HTML document", func(t *testing.T) {
+		html, err := RenderHTML(miWithBody("title: My Page", "# {{title}}\n\nHello world."))
+		assertNoErr(t, err)
+		assertContains(t, html, "<!doctype html>")
+		assertContains(t, html, "<title>My Page</title>")
+		assertContains(t, html, "<h1>My Page</h1>")
+		assertContains(t, html, "Hello world.")
+	})
+
+	t.Run("includes styles", func(t *testing.T) {
+		html, err := RenderHTML(miWithBody("title: T", "text"))
+		assertNoErr(t, err)
+		assertContains(t, html, "<style>")
+		assertContains(t, html, "max-width: 720px")
+	})
+
+	t.Run("no embed by default", func(t *testing.T) {
+		html, err := RenderHTML(miWithBody("title: T", "text"))
+		assertNoErr(t, err)
+		assertNotContains(t, html, "application/json")
+	})
+
+	t.Run("embed includes frontmatter script tag", func(t *testing.T) {
+		html, err := RenderHTML(miWithBody("title: My Doc\nversion: 2", "# {{title}}"), WithEmbed())
+		assertNoErr(t, err)
+		assertContains(t, html, `<script type="application/json" id="frontmatter">`)
+		assertContains(t, html, `"title": "My Doc"`)
+	})
+
+	t.Run("empty title", func(t *testing.T) {
+		html, err := RenderHTML(miWithBody("key: val", "text"))
+		assertNoErr(t, err)
+		assertContains(t, html, "<title></title>")
+	})
+}
+
+// ─── Render with embed ──────────────────────────────────────────────────────
+
+func TestRenderEmbed(t *testing.T) {
+	t.Run("embed appends frontmatter comment", func(t *testing.T) {
+		out, err := Render(miWithBody("title: Hello", "# {{title}}"), WithEmbed())
+		assertNoErr(t, err)
+		assertContains(t, out, "<!-- frontmatter")
+		assertContains(t, out, `"title": "Hello"`)
+		assertContains(t, out, "-->")
+	})
+
+	t.Run("no embed by default", func(t *testing.T) {
+		out, err := Render(miWithBody("title: Hello", "# {{title}}"))
+		assertNoErr(t, err)
+		assertNotContains(t, out, "<!-- frontmatter")
+	})
+}
+
 // ─── test helpers ───────────────────────────────────────────────────────────
 
 func assertNoErr(t *testing.T, err error) {
@@ -450,5 +526,19 @@ func assertEqual(t *testing.T, got, want any) {
 	t.Helper()
 	if fmt.Sprintf("%v", got) != fmt.Sprintf("%v", want) {
 		t.Fatalf("got %q, want %q", fmt.Sprintf("%v", got), fmt.Sprintf("%v", want))
+	}
+}
+
+func assertContains(t *testing.T, haystack, needle string) {
+	t.Helper()
+	if !strings.Contains(haystack, needle) {
+		t.Fatalf("expected output to contain %q, got:\n%s", needle, haystack)
+	}
+}
+
+func assertNotContains(t *testing.T, haystack, needle string) {
+	t.Helper()
+	if strings.Contains(haystack, needle) {
+		t.Fatalf("expected output NOT to contain %q, got:\n%s", needle, haystack)
 	}
 }
