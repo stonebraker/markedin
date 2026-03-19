@@ -1,8 +1,8 @@
 # markedin
 
-`.mi` is a file format for agentic systems and the humans who work with them.
+Markedin (`.mi`) is a file format for both machines and humans. 🤝 Structured data in the frontmatter, readable prose in the rendered body. No framework required.
 
-Structured YAML frontmatter. Markdown body that renders from it. One file — the agent reads the data, the human reads the rendered document.
+Included: Parsers for Go, Python, and Node. A CLI. Browser extensions for Chrome and Firefox.
 
 Full documentation: [markedin.dev](https://markedin.dev/)
 
@@ -48,7 +48,7 @@ node mi.js check task.mi        # validate file
 
 ---
 
-## Library
+## Parser
 
 ```js
 const { parse, render } = require("./parse");
