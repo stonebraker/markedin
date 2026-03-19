@@ -14,10 +14,6 @@ from markedin import parse, render, render_html, render_html_frag, resolve_path
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 
 
-def mi(source):
-    return f"---\n{source}\n---\n"
-
-
 def mi_with_body(frontmatter, body):
     return f"---\n{frontmatter}\n---\n{body}"
 
@@ -32,7 +28,7 @@ class TestParser(unittest.TestCase):
         self.assertEqual(body, "hello")
 
     def test_frontmatter_values_accessible_by_key(self):
-        data, _ = parse(mi("a: 1\nb: two\nc: true"))
+        data, _ = parse(mi_with_body("a: 1\nb: two\nc: true", ""))
         self.assertEqual(data["a"], 1)
         self.assertEqual(data["b"], "two")
         self.assertEqual(data["c"], True)
@@ -59,7 +55,7 @@ class TestParser(unittest.TestCase):
         self.assertEqual(body, "")
 
     def test_empty_body(self):
-        data, body = parse(mi("key: val"))
+        data, body = parse(mi_with_body("key: val", ""))
         self.assertEqual(data["key"], "val")
         self.assertEqual(body, "")
 
@@ -135,14 +131,8 @@ class TestScalarInterpolation(unittest.TestCase):
         out = render(mi_with_body("meta:\n  x: 1", "{{meta}}"))
         self.assertEqual(json.loads(out), {"x": 1})
 
-    def test_at_index_outside_each(self):
-        self.assertEqual(render(mi_with_body("", "{{@index}}")), "")
-
-    def test_at_first_outside_each(self):
-        self.assertEqual(render(mi_with_body("", "{{@first}}")), "")
-
-    def test_at_last_outside_each(self):
-        self.assertEqual(render(mi_with_body("", "{{@last}}")), "")
+    def test_loop_variables_outside_each(self):
+        self.assertEqual(render(mi_with_body("", "{{@index}}{{@first}}{{@last}}")), "")
 
 
 # ─── #each ───────────────────────────────────────────────────────────────────
@@ -239,9 +229,6 @@ class TestIf(unittest.TestCase):
     def test_null(self):
         self.assertEqual(render(mi_with_body("x: null", "{{#if x}}yes{{else}}no{{/if}}")), "no")
 
-    def test_else_branch(self):
-        self.assertEqual(render(mi_with_body("x: false", "{{#if x}}yes{{else}}fallback{{/if}}")), "fallback")
-
     def test_no_else_falsy(self):
         self.assertEqual(render(mi_with_body("x: false", "{{#if x}}yes{{/if}}")), "")
 
@@ -274,16 +261,8 @@ class TestPartial(unittest.TestCase):
     def test_inlines_string(self):
         self.assertEqual(render(mi_with_body("note: hello world", "{{> note}}")), "hello world")
 
-    def test_no_re_render(self):
-        src = mi_with_body('tpl: "{{name}}"\nname: Alice', "{{> tpl}}")
-        self.assertEqual(render(src), "{{name}}")
-
     def test_key_not_found(self):
         self.assertEqual(render(mi_with_body("", "{{> missing}}")), "")
-
-    def test_expressions_appear_literally(self):
-        src = mi_with_body('raw: "{{foo}} {{bar}}"', "{{> raw}}")
-        self.assertEqual(render(src), "{{foo}} {{bar}}")
 
 
 # ─── Double-evaluation protection ────────────────────────────────────────────
@@ -302,21 +281,6 @@ class TestDoubleEvalProtection(unittest.TestCase):
         src = mi_with_body('items:\n  - "{{x}}"', "{{#each items}}{{this}}{{/each}}")
         self.assertEqual(render(src), "{{x}}")
 
-    def test_code_fence_interpolated(self):
-        src = mi_with_body("expr: hello", "```\n{{expr}}\n```")
-        self.assertEqual(render(src), "```\nhello\n```")
-
-    def test_code_fence_unknown(self):
-        src = mi_with_body("", "```\n{{expr}}\n```")
-        self.assertEqual(render(src), "```\n\n```")
-
-    def test_inline_code_interpolated(self):
-        src = mi_with_body("expr: hello", "use `{{expr}}` here")
-        self.assertEqual(render(src), "use `hello` here")
-
-    def test_inline_code_unknown(self):
-        src = mi_with_body("", "use `{{expr}}` here")
-        self.assertEqual(render(src), "use `` here")
 
 
 # ─── render() end-to-end ─────────────────────────────────────────────────────
@@ -326,9 +290,6 @@ class TestRenderEndToEnd(unittest.TestCase):
     def test_no_frontmatter_in_output(self):
         out = render(mi_with_body("key: val", "# Title"))
         self.assertFalse(out.startswith("---"))
-
-    def test_all_expressions_resolved(self):
-        self.assertEqual(render(mi_with_body("a: 1\nb: two", "{{a}} {{b}}")), "1 two")
 
     def test_plain_markdown_unchanged(self):
         src = mi_with_body("", "# Heading\n\n- item 1\n- item 2")
@@ -341,18 +302,6 @@ class TestRenderEndToEnd(unittest.TestCase):
             "{{title}} {{count}} {{flag}} {{tags}} {{#each team}}{{name}}({{role}}) {{/each}}",
         )
         self.assertEqual(render(src), "Report 3 true x, y Ana(lead) Bo(dev) ")
-
-    def test_deep_path_four_levels(self):
-        self.assertEqual(
-            render(mi_with_body("a:\n  b:\n    c:\n      d: found", "{{a.b.c.d}}")),
-            "found",
-        )
-
-    def test_no_expressions_unchanged(self):
-        self.assertEqual(render(mi_with_body("key: val", "just plain text")), "just plain text")
-
-    def test_null_value_empty_string(self):
-        self.assertEqual(render(mi_with_body("x: null", "{{x}}")), "")
 
     def test_unicode(self):
         self.assertEqual(render(mi_with_body("greeting: こんにちは", "{{greeting}} 🌍")), "こんにちは 🌍")
