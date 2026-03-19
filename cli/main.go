@@ -27,10 +27,11 @@ const usage = `Usage:
   mi --help                 Show this help
 
 Output format (default: --md):
-  --md      Rendered markdown
-  --html    Full HTML document
-  --json    Frontmatter as JSON
-  --yaml    Frontmatter as YAML
+  --md        Rendered markdown
+  --html      Full HTML document
+  --html-frag HTML fragment (body content only, no wrapper)
+  --json      Frontmatter as JSON
+  --yaml      Frontmatter as YAML
 
 Options:
   --embed   Append frontmatter as a comment in the output
@@ -96,6 +97,20 @@ func main() {
 	case flags["--yaml"]:
 		b, _ := yaml.Marshal(doc.Data)
 		output = string(b)
+
+	case flags["--html-frag"]:
+		rendered, err := markedin.Render(string(source))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Render error: %s\n", err)
+			os.Exit(1)
+		}
+		var htmlBuf bytes.Buffer
+		md := goldmark.New(goldmark.WithExtensions(extension.Table))
+		if err := md.Convert([]byte(rendered), &htmlBuf); err != nil {
+			fmt.Fprintf(os.Stderr, "Markdown conversion error: %s\n", err)
+			os.Exit(1)
+		}
+		output = htmlBuf.String()
 
 	case flags["--html"]:
 		rendered, err := markedin.Render(string(source))

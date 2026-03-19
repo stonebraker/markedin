@@ -24,10 +24,11 @@ Usage:
   mi --help                 Show this help
 
 Output format (default: --md):
-  --md      Rendered markdown
-  --html    Full HTML document
-  --json    Frontmatter as JSON
-  --yaml    Frontmatter as YAML
+  --md        Rendered markdown
+  --html      Full HTML document
+  --html-frag HTML fragment (body content only, no wrapper)
+  --json      Frontmatter as JSON
+  --yaml      Frontmatter as YAML
 
 Options:
   --embed   Append frontmatter as a comment in the output
@@ -79,17 +80,21 @@ const flags = new Set(args.filter(a => a.startsWith('-')));
 const outIdx = args.indexOf('-o');
 const outFile = outIdx !== -1 ? args[outIdx + 1] : null;
 
-const isHtml  = flags.has('--html');
-const isJson  = flags.has('--json');
-const isYaml  = flags.has('--yaml');
-const embed   = flags.has('--embed');
+const isHtml     = flags.has('--html');
+const isHtmlFrag = flags.has('--html-frag');
+const isJson     = flags.has('--json');
+const isYaml     = flags.has('--yaml');
+const embed      = flags.has('--embed');
 
 const source = fs.readFileSync(abs, 'utf8');
 const { data } = parse(source);
 
 let output;
 
-if (isJson) {
+if (isHtmlFrag) {
+  const markdown = render(source);
+  output = marked.parse(markdown);
+} else if (isJson) {
   output = JSON.stringify(data, null, 2) + '\n';
 } else if (isYaml) {
   output = yaml.dump(data);
