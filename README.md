@@ -2,9 +2,9 @@
 
 `.mi` is a file format for agentic systems and the humans who work with them.
 
-Structured YAML frontmatter. Markdown body that renders from it. One file — the agent reads the data, the human reads the document.
+Structured YAML frontmatter. Markdown body that renders from it. One file — the agent reads the data, the human reads the rendered document.
 
-Full documentation: [agenticsystems.design/markedin](https://agenticsystems.design/markedin/)
+Full documentation: [markedin.dev](https://markedin.dev/)
 
 ---
 
@@ -72,4 +72,4 @@ Package for distribution: `npm install -g @vscode/vsce && vsce package`.
 
 ## Author
 
-Jason Stonebraker · [agenticsystems.design](https://agenticsystems.design)
+Jason Stonebraker · [markedin.dev](https://markedin.dev)

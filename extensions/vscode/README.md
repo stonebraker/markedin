@@ -2,7 +2,7 @@
 
 Live preview and syntax highlighting for `.mi` files in VS Code and Cursor.
 
-`.mi` is the [markedin](https://agenticsystems.design/markedin/) file format — structured YAML frontmatter with a markdown body that renders from it. One file readable by both agents and humans, with no separate data source or template engine required.
+`.mi` is the [markedin](https://markedin.dev/) file format — structured YAML frontmatter with a markdown body that renders from it. One file readable by both agents and humans, with no separate data source or template engine required.
 
 ---
 
@@ -28,7 +28,7 @@ The preview button also appears in the editor title bar when a `.mi` file is act
 
 ## Installation
 
-**From source** — clone the [markedin repo](https://agenticsystems.design/markedin/), open the `extension/` folder in VS Code or Cursor, and press `F5` to launch an Extension Development Host.
+**From source** — clone the [markedin repo](https://markedin.dev/), open the `extension/` folder in VS Code or Cursor, and press `F5` to launch an Extension Development Host.
 
 **From VSIX** — package with `vsce package` and install via *Extensions → ··· → Install from VSIX*.
 
@@ -54,10 +54,10 @@ items:
 {{/each}}
 ```
 
-Full format documentation at [agenticsystems.design/markedin](https://agenticsystems.design/markedin/).
+Full format documentation at [markedin.dev](https://markedin.dev/).
 
 ---
 
 ## Author
 
-Jason Stonebraker · [agenticsystems.design](https://agenticsystems.design)
+Jason Stonebraker · [markedin.dev](https://markedin.dev)
