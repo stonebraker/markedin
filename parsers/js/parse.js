@@ -13,6 +13,7 @@
  */
 
 const yaml = require('js-yaml');
+const { marked } = require('marked');
 
 // ─── Frontmatter extraction ───────────────────────────────────────────────────
 
@@ -117,10 +118,58 @@ function processBlocks(str, openRe, nestedOpenRe, closeTag, fn) {
 
 // ─── Render ───────────────────────────────────────────────────────────────────
 
-function render(source) {
+function render(source, { embed = false } = {}) {
   const { data, body } = parse(source);
-  return renderTemplate(body, data);
+  let out = renderTemplate(body, data);
+  if (embed) {
+    out = out.trimEnd() + '\n\n<!-- frontmatter\n' + JSON.stringify(data, null, 2) + '\n-->\n';
+  }
+  return out;
 }
+
+function renderHtmlFrag(source) {
+  const md = render(source);
+  return marked.parse(md, { gfm: true });
+}
+
+function renderHtml(source, { embed = false } = {}) {
+  const { data, body } = parse(source);
+  const rendered = renderTemplate(body, data);
+  const htmlBody = marked.parse(rendered, { gfm: true });
+  const title = data.title || '';
+  let dataBlock = '';
+  if (embed) {
+    dataBlock = '\n<script type="application/json" id="frontmatter">\n' + JSON.stringify(data, null, 2) + '\n</script>';
+  }
+  return HTML_TEMPLATE.replace('%TITLE%', title).replace('%DATA_BLOCK%', dataBlock).replace('%BODY%', htmlBody);
+}
+
+const HTML_TEMPLATE = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>%TITLE%</title>%DATA_BLOCK%
+<style>
+  body { max-width: 720px; margin: 0 auto; padding: 3rem 1.5rem; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 1.0625rem; line-height: 1.65; color: #1f2937; }
+  h1, h2, h3 { color: #111827; letter-spacing: -.02em; }
+  h1 { font-size: 2rem; margin-bottom: .5rem; }
+  h2 { font-size: 1.4rem; margin-top: 2.5rem; }
+  h3 { font-size: 1.1rem; margin-top: 2rem; }
+  code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: .875em; background: #f3f4f6; padding: .1em .35em; border-radius: 3px; }
+  pre { background: #f3f4f6; border-radius: 6px; padding: 1.25rem; overflow-x: auto; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; padding: .5rem .75rem; border-bottom: 1px solid #e5e7eb; }
+  th { font-size: .8125rem; text-transform: uppercase; letter-spacing: .05em; color: #6b7280; }
+  a { color: #2563eb; }
+  hr { border: none; border-top: 1px solid #e5e7eb; margin: 2.5rem 0; }
+</style>
+</head>
+<body>
+%BODY%
+</body>
+</html>`;
 
 function renderTemplate(template, ctx) {
   const registry = new Map();
@@ -188,4 +237,4 @@ function renderTemplate(template, ctx) {
   return restore(out);
 }
 
-module.exports = { parse, render, renderTemplate, resolvePath };
+module.exports = { parse, render, renderHtmlFrag, renderHtml, renderTemplate, resolvePath };

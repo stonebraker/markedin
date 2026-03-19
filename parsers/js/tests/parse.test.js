@@ -10,7 +10,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 
-const { parse, render, resolvePath } = require('../parse');
+const { parse, render, renderHtmlFrag, renderHtml, resolvePath } = require('../parse');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -397,6 +397,85 @@ describe('render() end-to-end', () => {
   test('unicode in frontmatter values and body', () => {
     const src = miWithBody('greeting: こんにちは', '{{greeting}} 🌍');
     assert.equal(render(src), 'こんにちは 🌍');
+  });
+});
+
+// ─── renderHtmlFrag ──────────────────────────────────────────────────────────
+
+describe('renderHtmlFrag', () => {
+  test('returns HTML without document wrapper', () => {
+    const src = miWithBody('title: Hello', '# {{title}}');
+    const html = renderHtmlFrag(src);
+    assert.ok(html.includes('<h1>Hello</h1>'));
+    assert.ok(!html.includes('<!doctype'));
+    assert.ok(!html.includes('<html'));
+  });
+
+  test('renders tables', () => {
+    const src = miWithBody('', '| A | B |\n|---|---|\n| 1 | 2 |');
+    const html = renderHtmlFrag(src);
+    assert.ok(html.includes('<table>'));
+    assert.ok(html.includes('<td>1</td>'));
+  });
+});
+
+// ─── renderHtml ──────────────────────────────────────────────────────────────
+
+describe('renderHtml', () => {
+  test('returns a full HTML document', () => {
+    const src = miWithBody('title: Hello', '# {{title}}');
+    const html = renderHtml(src);
+    assert.ok(html.includes('<!doctype html>'));
+    assert.ok(html.includes('<title>Hello</title>'));
+    assert.ok(html.includes('<h1>Hello</h1>'));
+  });
+
+  test('includes styles', () => {
+    const src = miWithBody('title: T', '# {{title}}');
+    const html = renderHtml(src);
+    assert.ok(html.includes('<style>'));
+  });
+
+  test('empty title fallback', () => {
+    const src = miWithBody('x: 1', '# Heading');
+    const html = renderHtml(src);
+    assert.ok(html.includes('<title></title>'));
+  });
+});
+
+// ─── render/renderHtml embed ─────────────────────────────────────────────────
+
+describe('embed option', () => {
+  test('render with embed appends frontmatter as HTML comment', () => {
+    const src = miWithBody('title: Test', '# {{title}}');
+    const md = render(src, { embed: true });
+    assert.ok(md.includes('<!-- frontmatter'));
+    assert.ok(md.includes('-->'));
+    const match = md.match(/<!-- frontmatter\n([\s\S]*?)\n-->/);
+    const json = JSON.parse(match[1]);
+    assert.equal(json.title, 'Test');
+  });
+
+  test('render without embed has no comment', () => {
+    const src = miWithBody('title: Test', '# {{title}}');
+    const md = render(src);
+    assert.ok(!md.includes('<!-- frontmatter'));
+  });
+
+  test('renderHtml with embed includes frontmatter script tag', () => {
+    const src = miWithBody('title: Test\ncount: 3', '# {{title}}');
+    const html = renderHtml(src, { embed: true });
+    assert.ok(html.includes('<script type="application/json" id="frontmatter">'));
+    const match = html.match(/<script[^>]*id="frontmatter"[^>]*>\s*([\s\S]*?)\s*<\/script>/);
+    const json = JSON.parse(match[1]);
+    assert.equal(json.title, 'Test');
+    assert.equal(json.count, 3);
+  });
+
+  test('renderHtml without embed has no script tag', () => {
+    const src = miWithBody('title: Test', '# {{title}}');
+    const html = renderHtml(src);
+    assert.ok(!html.includes('id="frontmatter"'));
   });
 });
 

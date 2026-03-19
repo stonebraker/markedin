@@ -118,9 +118,13 @@ function processBlocks(str, openRe, nestedOpenRe, closeTag, fn) {
 
 // ─── Render ───────────────────────────────────────────────────────────────────
 
-function render(source) {
+function render(source, { embed = false } = {}) {
   const { data, body } = parse(source);
-  return renderTemplate(body, data);
+  let out = renderTemplate(body, data);
+  if (embed) {
+    out = out.trimEnd() + '\n\n<!-- frontmatter\n' + JSON.stringify(data, null, 2) + '\n-->\n';
+  }
+  return out;
 }
 
 function renderTemplate(template, ctx) {
