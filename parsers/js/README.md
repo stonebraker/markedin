@@ -1,8 +1,8 @@
 # markedin-parser
 
-Parse and render `.mi` (markedin) files — Structured data in the frontmatter, readable prose in the rendered body.
+Markedin (`.mi`) is a file format for both machines and humans. YAML frontmatter + templated Markdown.
 
-Markedin (`.mi`) is a file format for both machines and humans. 🤝 YAML frontmatter + templated Markdown. No framework required.
+`markedin-parser` parses and renders `.mi` (markedin) files. No framework required. Perfect for file-based agentic systems.
 
 Full documentation at [markedin.dev](https://markedin.dev)
 
@@ -17,6 +17,7 @@ npm install markedin-parser
 A `.mi` file has YAML frontmatter between `---` delimiters and a Markdown body that renders from it.
 
 `task.mi`:
+
 ```
 ---
 task: Implement rate limiting
@@ -66,7 +67,12 @@ First note: {{notes[0]}}
 
 ```javascript
 const fs = require("fs");
-const { parse, render, renderHtmlFrag, renderHtml } = require("markedin-parser");
+const {
+    parse,
+    render,
+    renderHtmlFrag,
+    renderHtml,
+} = require("markedin-parser");
 
 const source = fs.readFileSync("task.mi", "utf8");
 
@@ -84,8 +90,8 @@ renderHtmlFrag(source);
 renderHtml(source);
 
 // Embed frontmatter in output
-render(source, { embed: true });         // appends as HTML comment
-renderHtml(source, { embed: true });     // adds <script> tag in <head>
+render(source, { embed: true }); // appends as HTML comment
+renderHtml(source, { embed: true }); // adds <script> tag in <head>
 ```
 
 ## Markedin Parser API
@@ -116,7 +122,7 @@ Resolve a dotted/bracketed path against a data object.
 
 ```javascript
 resolvePath(data, "owner.name"); // → 'Dana'
-resolvePath(data, "notes[0]");   // → 'Token bucket algorithm chosen over leaky bucket'
+resolvePath(data, "notes[0]"); // → 'Token bucket algorithm chosen over leaky bucket'
 ```
 
 ## License
