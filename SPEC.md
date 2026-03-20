@@ -96,6 +96,17 @@ Inline another frontmatter value as raw text without escaping:
 
 Useful for reusable prose snippets stored in the frontmatter.
 
+### Escaping
+
+Prefix `{{` with a backslash to render it literally:
+
+```
+\{{key}} renders as {{key}}
+\{{#each items}} renders as {{#each items}}
+```
+
+The backslash is consumed — only the `{{ }}` expression appears in the output. This is useful for documenting markedin syntax within a `.mi` file.
+
 ---
 
 ## Use cases

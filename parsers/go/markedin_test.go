@@ -348,6 +348,18 @@ func TestDoubleEvalProtection(t *testing.T) {
 	})
 }
 
+// ─── Escape ─────────────────────────────────────────────────────────────────
+
+func TestEscape(t *testing.T) {
+	t.Run("escaped expression renders literally", func(t *testing.T) {
+		assertEqual(t, mustRender(t, miWithBody("name: Alice", `\{{name}}`)), "{{name}}")
+	})
+
+	t.Run("escaped and resolved coexist", func(t *testing.T) {
+		assertEqual(t, mustRender(t, miWithBody("name: Alice", `\{{name}} is {{name}}`)), "{{name}} is Alice")
+	})
+}
+
 // ─── render() end-to-end ────────────────────────────────────────────────────
 
 func TestRenderEndToEnd(t *testing.T) {

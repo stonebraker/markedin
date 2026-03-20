@@ -155,6 +155,7 @@ func markdownToHTML(markdown string) (string, error) {
 var (
 	reEmptyFM     = regexp.MustCompile(`(?s)\A---\r?\n---\r?\n?([\s\S]*)\z`)
 	reFM          = regexp.MustCompile(`(?s)\A---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)\z`)
+	reEscape      = regexp.MustCompile(`\\\{\{`)
 	reEachOpen    = regexp.MustCompile(`\{\{#each ([\w.\[\]]+)\}\}`)
 	reEachNested  = regexp.MustCompile(`\{\{#each [\w.\[\]]+\}\}`)
 	reIfOpen      = regexp.MustCompile(`\{\{#if ([\w.\[\]]+)\}\}`)
@@ -220,6 +221,11 @@ func renderTemplate(template string, ctx map[string]any) string {
 	}
 
 	out := template
+
+	// 0. \{{ → protect as literal {{
+	out = reEscape.ReplaceAllStringFunc(out, func(match string) string {
+		return protect("{{")
+	})
 
 	// 1. {{#each key}} … {{/each}}
 	out = processBlocks(out, reEachOpen, reEachNested, "{{/each}}", func(key, inner string) string {
