@@ -89,7 +89,7 @@ def render(source: str, embed: bool = False) -> str:
 def render_html_frag(source: str) -> str:
     """Render source to an HTML fragment (no document wrapper)."""
     markdown = render(source)
-    return md_lib.markdown(markdown, extensions=["tables"])
+    return md_lib.markdown(markdown, extensions=["tables", "pymdownx.tilde", "pymdownx.tasklist", "pymdownx.magiclink"])
 
 
 def render_html(source: str, embed: bool = False) -> str:

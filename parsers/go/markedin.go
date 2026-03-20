@@ -143,7 +143,7 @@ func applyOpts(opts []RenderOption) renderConfig {
 
 func markdownToHTML(markdown string) (string, error) {
 	var buf bytes.Buffer
-	md := goldmark.New(goldmark.WithExtensions(extension.Table))
+	md := goldmark.New(goldmark.WithExtensions(extension.Table, extension.Strikethrough, extension.Linkify, extension.TaskList))
 	if err := md.Convert([]byte(markdown), &buf); err != nil {
 		return "", err
 	}
