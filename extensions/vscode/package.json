@@ -2,7 +2,7 @@
   "name": "markedin",
   "displayName": "markedin",
   "description": "Preview and syntax highlighting for .mi (markedin) files",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "stonebraker",
   "engines": { "vscode": "^1.74.0" },
   "categories": ["Languages", "Visualization"],
