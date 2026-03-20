@@ -57,6 +57,7 @@ See [SPEC.md](./SPEC.md) for the full format specification.
 | `{{#each items}}...{{/each}}`      | Iterate an array                             |
 | `{{#if key}}...{{else}}...{{/if}}` | Conditional block                            |
 | `{{> key}}`                        | Inline a frontmatter string as raw text      |
+| `\{{key}}`                         | Render `{{key}}` literally (escape)          |
 
 ---
 

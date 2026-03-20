@@ -42,6 +42,7 @@ Body prose using {{nested.field}} and list items:
 | `{{#each items}} … {{/each}}` | Iterate an array. Object fields available directly. `{{@index}}`, `{{@first}}`, `{{@last}}` available inside the block. |
 | `{{#if key}} … {{else}} … {{/if}}` | Conditional block. Falsy: `false`, `0`, `""`, `null`, `[]`, `{}`. |
 | `{{> key}}` | Inline a frontmatter string value as raw text. |
+| `\{{key}}` | Render `{{key}}` literally (escape). |
 
 ## Rules
 

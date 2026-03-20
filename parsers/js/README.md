@@ -62,6 +62,7 @@ First note: {{notes[0]}}
 | `{{#each items}}...{{/each}}`      | Iterate an array                             |
 | `{{#if key}}...{{else}}...{{/if}}` | Conditional block                            |
 | `{{> key}}`                        | Inline a frontmatter string as raw text      |
+| `\{{key}}`                         | Render `{{key}}` literally (escape)          |
 
 ## Parsing and Rendering a Markedin File
 

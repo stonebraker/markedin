@@ -147,6 +147,9 @@ function renderTemplate(template, ctx) {
 
   let out = template;
 
+  // 0. \{{ → protect as literal {{
+  out = out.replace(/\\\{\{/g, () => protect('{{'));
+
   // 1. {{#each key}} ... {{/each}}
   out = processBlocks(out,
     /\{\{#each ([\w.[\]]+)\}\}/g,

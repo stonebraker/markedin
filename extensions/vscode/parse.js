@@ -118,6 +118,9 @@ function renderTemplate(template, ctx) {
   // of code blocks is needed.
   let out = template;
 
+  // \{{ → protect as literal {{
+  out = out.replace(/\\\{\{/g, () => protect('{{'));
+
   // 2. {{#each key}} ... {{/each}}
   // Walk left-to-right; use depth counting to find each opening tag's true
   // matching close, so nested #each blocks are passed intact to the inner
