@@ -12,6 +12,8 @@ Format spec:
       {{> partial_key}}              — inline another frontmatter string
 """
 
+SPEC_VERSION = "0.3.0"
+
 import json
 import os
 import re

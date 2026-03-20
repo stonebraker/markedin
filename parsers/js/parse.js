@@ -12,6 +12,8 @@
  *       {{> partial_key}}             — inline another frontmatter string as markdown
  */
 
+const SPEC_VERSION = '0.3.0';
+
 const yaml = require('js-yaml');
 const { marked } = require('marked');
 
@@ -240,4 +242,4 @@ function renderTemplate(template, ctx) {
   return restore(out);
 }
 
-module.exports = { parse, render, renderHtmlFrag, renderHtml, renderTemplate, resolvePath };
+module.exports = { SPEC_VERSION, parse, render, renderHtmlFrag, renderHtml, renderTemplate, resolvePath };

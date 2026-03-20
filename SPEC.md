@@ -1,5 +1,7 @@
 # .mi — markedin format spec
 
+**Spec version: 0.3.0**
+
 A `.mi` file is a plain-text document with two sections:
 
 1. **YAML frontmatter** — structured, machine-readable data
@@ -106,6 +108,17 @@ Prefix `{{` with a backslash to render it literally:
 ```
 
 The backslash is consumed — only the `{{ }}` expression appears in the output. This is useful for documenting markedin syntax within a `.mi` file.
+
+---
+
+## Markdown rendering
+
+After template expressions are resolved, the body is rendered as Markdown. Parsers must support GitHub Flavored Markdown (GFM), which includes:
+
+- **Tables** — pipe-delimited table syntax
+- **Strikethrough** — `~~text~~` renders as struck-through text
+- **Autolinks** — bare URLs become clickable links
+- **Task lists** — `- [x]` and `- [ ]` render as checkboxes
 
 ---
 

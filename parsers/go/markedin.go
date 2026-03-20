@@ -17,6 +17,9 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// SpecVersion is the markedin spec version this parser implements.
+const SpecVersion = "0.3.0"
+
 // Document holds the parsed frontmatter and body of a .mi file.
 type Document struct {
 	Data map[string]any
