@@ -372,6 +372,18 @@ describe('Double-evaluation protection', () => {
   });
 });
 
+// ─── Escape ──────────────────────────────────────────────────────────────────
+
+describe('Escape \\{{', () => {
+  test('escaped expression renders literally', () => {
+    assert.equal(render(miWithBody('name: Alice', '\\{{name}}')), '{{name}}');
+  });
+
+  test('escaped and resolved coexist', () => {
+    assert.equal(render(miWithBody('name: Alice', '\\{{name}} is {{name}}')), '{{name}} is Alice');
+  });
+});
+
 // ─── render() end-to-end ─────────────────────────────────────────────────────
 
 describe('render() end-to-end', () => {
