@@ -283,6 +283,17 @@ class TestDoubleEvalProtection(unittest.TestCase):
 
 
 
+# ─── Escape ──────────────────────────────────────────────────────────────────
+
+
+class TestEscape(unittest.TestCase):
+    def test_escaped_expression_renders_literally(self):
+        self.assertEqual(render(mi_with_body("name: Alice", r"\{{name}}")), "{{name}}")
+
+    def test_escaped_and_resolved_coexist(self):
+        self.assertEqual(render(mi_with_body("name: Alice", r"\{{name}} is {{name}}")), "{{name}} is Alice")
+
+
 # ─── render() end-to-end ─────────────────────────────────────────────────────
 
 

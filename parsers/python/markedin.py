@@ -156,6 +156,9 @@ def _render_template(template: str, ctx: Dict[str, Any]) -> str:
 
     out = template
 
+    # 0. \{{ → protect as literal {{
+    out = re.sub(r"\\\{\{", lambda m: protect("{{"), out)
+
     # 1. {{#each key}} … {{/each}}
     each_open_re = re.compile(r"\{\{#each ([\w.\[\]]+)\}\}")
     each_nested_re = re.compile(r"\{\{#each [\w.\[\]]+\}\}")
