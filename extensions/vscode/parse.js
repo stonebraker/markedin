@@ -112,6 +112,23 @@ function renderTemplate(template, ctx) {
     return -1;
   }
 
+  // Standalone tag detection
+  function isStandalone(s, tagStart, tagEnd) {
+    let lineStart = tagStart;
+    while (lineStart > 0 && s[lineStart - 1] !== '\n') lineStart--;
+    for (let i = lineStart; i < tagStart; i++) {
+      if (s[i] !== ' ' && s[i] !== '\t') return null;
+    }
+    let pos = tagEnd;
+    while (pos < s.length && s[pos] !== '\n' && s[pos] !== '\r') {
+      if (s[pos] !== ' ' && s[pos] !== '\t') return null;
+      pos++;
+    }
+    if (pos < s.length && s[pos] === '\r') pos++;
+    if (pos < s.length && s[pos] === '\n') pos++;
+    return { lineStart, lineEnd: pos };
+  }
+
   // 1. Template expressions interpolate everywhere — including inside fenced
   // code blocks and inline code spans. The STX/ETX token mechanism already
   // prevents double-evaluation of resolved values, so no upfront protection
@@ -133,11 +150,25 @@ function renderTemplate(template, ctx) {
     let lastEnd = 0;
     let m;
     while ((m = openRe.exec(out)) !== null) {
+      const openStart = m.index;
       const openEnd = m.index + m[0].length;
       const closeIdx = findClose(out, nestedOpenRe, closeTag, openEnd);
       if (closeIdx === -1) continue;
-      const inner = out.slice(openEnd, closeIdx);
-      result += out.slice(lastEnd, m.index);
+      const closeEnd = closeIdx + closeTag.length;
+
+      let consumeFrom = openStart;
+      let consumeTo = closeEnd;
+      let innerStart = openEnd;
+      let innerEnd = closeIdx;
+
+      const openSA = isStandalone(out, openStart, openEnd);
+      if (openSA) { consumeFrom = openSA.lineStart; innerStart = openSA.lineEnd; }
+
+      const closeSA = isStandalone(out, closeIdx, closeEnd);
+      if (closeSA) { consumeTo = closeSA.lineEnd; }
+
+      const inner = out.slice(innerStart, innerEnd);
+      result += out.slice(lastEnd, consumeFrom);
       const arr = resolvePath(ctx, m[1]);
       if (!Array.isArray(arr)) {
         result += protect('');
@@ -148,7 +179,7 @@ function renderTemplate(template, ctx) {
           return renderTemplate(inner, itemCtx);
         }).join(''));
       }
-      lastEnd = closeIdx + closeTag.length;
+      lastEnd = consumeTo;
       openRe.lastIndex = lastEnd;
     }
     out = result + out.slice(lastEnd);
@@ -165,18 +196,44 @@ function renderTemplate(template, ctx) {
     let lastEnd = 0;
     let m;
     while ((m = openRe.exec(out)) !== null) {
+      const openStart = m.index;
       const openEnd = m.index + m[0].length;
       const closeIdx = findClose(out, nestedOpenRe, closeTag, openEnd);
       if (closeIdx === -1) continue;
-      const inner = out.slice(openEnd, closeIdx);
+      const closeEnd = closeIdx + closeTag.length;
+
+      let consumeFrom = openStart;
+      let consumeTo = closeEnd;
+      let innerStart = openEnd;
+      let innerEnd = closeIdx;
+
+      const openSA = isStandalone(out, openStart, openEnd);
+      if (openSA) { consumeFrom = openSA.lineStart; innerStart = openSA.lineEnd; }
+
+      const closeSA = isStandalone(out, closeIdx, closeEnd);
+      if (closeSA) { consumeTo = closeSA.lineEnd; }
+
+      const inner = out.slice(innerStart, innerEnd);
       const elseIdx = findTopLevelElse(inner);
-      const truthy = elseIdx === -1 ? inner : inner.slice(0, elseIdx);
-      const falsy  = elseIdx === -1 ? '' : inner.slice(elseIdx + '{{else}}'.length);
-      result += out.slice(lastEnd, m.index);
+      let truthy, falsy;
+      if (elseIdx === -1) {
+        truthy = inner; falsy = '';
+      } else {
+        const elseEnd = elseIdx + '{{else}}'.length;
+        const elseSA = isStandalone(inner, elseIdx, elseEnd);
+        if (elseSA) {
+          truthy = inner.slice(0, elseSA.lineStart);
+          falsy = inner.slice(elseSA.lineEnd);
+        } else {
+          truthy = inner.slice(0, elseIdx);
+          falsy = inner.slice(elseEnd);
+        }
+      }
+      result += out.slice(lastEnd, consumeFrom);
       const val = resolvePath(ctx, m[1]);
       const isTruthy = val && (typeof val !== 'object' || Object.keys(val).length > 0) && (!Array.isArray(val) || val.length > 0);
       result += protect(renderTemplate(isTruthy ? truthy : falsy, ctx));
-      lastEnd = closeIdx + closeTag.length;
+      lastEnd = consumeTo;
       openRe.lastIndex = lastEnd;
     }
     out = result + out.slice(lastEnd);
