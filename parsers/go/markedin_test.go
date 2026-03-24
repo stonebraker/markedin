@@ -463,6 +463,34 @@ func TestRenderEmbed(t *testing.T) {
 	})
 }
 
+// ─── Standalone tag stripping ────────────────────────────────────────────────
+
+func TestStandaloneTagStripping(t *testing.T) {
+	t.Run("each on own lines does not produce blank lines", func(t *testing.T) {
+		src := miWithBody("items:\n  - a\n  - b", "before\n{{#each items}}\n{{this}}\n{{/each}}\nafter")
+		assertEqual(t, mustRender(t, src), "before\na\nb\nafter")
+	})
+
+	t.Run("table with each renders valid markdown table", func(t *testing.T) {
+		src := miWithBody(
+			"rows:\n  - name: Alice\n    role: eng\n  - name: Bob\n    role: pm",
+			"| Name | Role |\n|------|------|\n{{#each rows}}\n| {{name}} | {{role}} |\n{{/each}}",
+		)
+		want := "| Name | Role |\n|------|------|\n| Alice | eng |\n| Bob | pm |\n"
+		assertEqual(t, mustRender(t, src), want)
+	})
+
+	t.Run("if/else on own lines stripped", func(t *testing.T) {
+		src := miWithBody("show: true", "before\n{{#if show}}\nyes\n{{else}}\nno\n{{/if}}\nafter")
+		assertEqual(t, mustRender(t, src), "before\nyes\nafter")
+	})
+
+	t.Run("inline tags not stripped", func(t *testing.T) {
+		src := miWithBody("items:\n  - x", "a{{#each items}}{{this}}{{/each}}b")
+		assertEqual(t, mustRender(t, src), "axb")
+	})
+}
+
 // ─── test helpers ───────────────────────────────────────────────────────────
 
 func assertNoErr(t *testing.T, err error) {

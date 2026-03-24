@@ -455,6 +455,33 @@ describe('renderHtml', () => {
   });
 });
 
+// ─── Standalone tag stripping ────────────────────────────────────────────────
+
+describe('Standalone tag stripping', () => {
+  test('each on own lines does not produce blank lines', () => {
+    const src = miWithBody('items:\n  - a\n  - b', 'before\n{{#each items}}\n{{this}}\n{{/each}}\nafter');
+    assert.equal(render(src), 'before\na\nb\nafter');
+  });
+
+  test('table with each renders valid markdown table', () => {
+    const src = miWithBody(
+      'rows:\n  - name: Alice\n    role: eng\n  - name: Bob\n    role: pm',
+      '| Name | Role |\n|------|------|\n{{#each rows}}\n| {{name}} | {{role}} |\n{{/each}}'
+    );
+    assert.equal(render(src), '| Name | Role |\n|------|------|\n| Alice | eng |\n| Bob | pm |\n');
+  });
+
+  test('if/else on own lines stripped', () => {
+    const src = miWithBody('show: true', 'before\n{{#if show}}\nyes\n{{else}}\nno\n{{/if}}\nafter');
+    assert.equal(render(src), 'before\nyes\nafter');
+  });
+
+  test('inline tags not stripped', () => {
+    const src = miWithBody('items:\n  - x', 'a{{#each items}}{{this}}{{/each}}b');
+    assert.equal(render(src), 'axb');
+  });
+});
+
 // ─── render/renderHtml embed ─────────────────────────────────────────────────
 
 describe('embed option', () => {

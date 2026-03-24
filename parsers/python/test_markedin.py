@@ -424,6 +424,27 @@ class TestRenderHtml(unittest.TestCase):
         self.assertIn("<title></title>", html)
 
 
+class TestStandaloneTagStripping(unittest.TestCase):
+    def test_each_on_own_lines_no_blank_lines(self):
+        src = mi_with_body("items:\n  - a\n  - b", "before\n{{#each items}}\n{{this}}\n{{/each}}\nafter")
+        self.assertEqual(render(src), "before\na\nb\nafter")
+
+    def test_table_with_each_renders_valid_markdown(self):
+        src = mi_with_body(
+            "rows:\n  - name: Alice\n    role: eng\n  - name: Bob\n    role: pm",
+            "| Name | Role |\n|------|------|\n{{#each rows}}\n| {{name}} | {{role}} |\n{{/each}}",
+        )
+        self.assertEqual(render(src), "| Name | Role |\n|------|------|\n| Alice | eng |\n| Bob | pm |\n")
+
+    def test_if_else_on_own_lines_stripped(self):
+        src = mi_with_body("show: true", "before\n{{#if show}}\nyes\n{{else}}\nno\n{{/if}}\nafter")
+        self.assertEqual(render(src), "before\nyes\nafter")
+
+    def test_inline_tags_not_stripped(self):
+        src = mi_with_body("items:\n  - x", "a{{#each items}}{{this}}{{/each}}b")
+        self.assertEqual(render(src), "axb")
+
+
 class TestRenderEmbed(unittest.TestCase):
     def test_md_embed(self):
         src = mi_with_body("title: Hello", "# {{title}}")
