@@ -168,6 +168,45 @@ var (
 	reInterpolate = regexp.MustCompile(`\{\{([\w.\[\]@]+)\}\}`)
 )
 
+// ─── standalone tag detection ────────────────────────────────────────────────
+
+// isStandalone checks if a tag occupying s[tagStart:tagEnd] is the only
+// non-whitespace content on its line.  When true it returns the line's
+// start offset and the offset just past the line's newline.
+func isStandalone(s string, tagStart, tagEnd int) (lineStart, lineEnd int, ok bool) {
+	// Find start of line containing the tag.
+	lineStart = tagStart
+	for lineStart > 0 && s[lineStart-1] != '\n' {
+		lineStart--
+	}
+
+	// Only whitespace allowed before the tag on this line.
+	for i := lineStart; i < tagStart; i++ {
+		if s[i] != ' ' && s[i] != '\t' {
+			return 0, 0, false
+		}
+	}
+
+	// Only whitespace allowed after the tag until end of line.
+	pos := tagEnd
+	for pos < len(s) && s[pos] != '\n' && s[pos] != '\r' {
+		if s[pos] != ' ' && s[pos] != '\t' {
+			return 0, 0, false
+		}
+		pos++
+	}
+
+	// Consume \r\n or \n.
+	if pos < len(s) && s[pos] == '\r' {
+		pos++
+	}
+	if pos < len(s) && s[pos] == '\n' {
+		pos++
+	}
+
+	return lineStart, pos, true
+}
+
 // ─── path resolution ────────────────────────────────────────────────────────
 
 var reArrayIdx = regexp.MustCompile(`\[(\d+)\]`)
@@ -262,8 +301,14 @@ func renderTemplate(template string, ctx map[string]any) string {
 		if elseIdx == -1 {
 			truthy = inner
 		} else {
-			truthy = inner[:elseIdx]
-			falsy = inner[elseIdx+len("{{else}}"):]
+			elseEnd := elseIdx + len("{{else}}")
+			if ls, le, ok := isStandalone(inner, elseIdx, elseEnd); ok {
+				truthy = inner[:ls]
+				falsy = inner[le:]
+			} else {
+				truthy = inner[:elseIdx]
+				falsy = inner[elseEnd:]
+			}
 		}
 		if isTruthy(val) {
 			return protect(renderTemplate(truthy, ctx))
@@ -296,6 +341,8 @@ func renderTemplate(template string, ctx map[string]any) string {
 
 // processBlocks walks left-to-right through the string, finds matching
 // open/close pairs with depth counting, and calls fn(key, inner) for each.
+// Standalone block tags (alone on a line) have their lines consumed so they
+// don't produce blank lines in the rendered output.
 func processBlocks(s string, openRe, nestedOpenRe *regexp.Regexp, closeTag string, fn func(key, inner string) string) string {
 	var result strings.Builder
 	lastEnd := 0
@@ -306,21 +353,38 @@ func processBlocks(s string, openRe, nestedOpenRe *regexp.Regexp, closeTag strin
 			break
 		}
 		// Adjust indices to absolute positions.
-		matchStart := lastEnd + loc[0]
-		matchEnd := lastEnd + loc[1]
+		openStart := lastEnd + loc[0]
+		openEnd := lastEnd + loc[1]
 		key := s[lastEnd+loc[2] : lastEnd+loc[3]]
 
-		closeIdx := findClose(s, nestedOpenRe, closeTag, matchEnd)
+		closeIdx := findClose(s, nestedOpenRe, closeTag, openEnd)
 		if closeIdx == -1 {
 			// No matching close — skip this open tag.
-			lastEnd = matchEnd
+			lastEnd = openEnd
 			continue
 		}
+		closeEnd := closeIdx + len(closeTag)
 
-		inner := s[matchEnd:closeIdx]
-		result.WriteString(s[lastEnd:matchStart])
+		consumeFrom := openStart
+		consumeTo := closeEnd
+		innerStart := openEnd
+		innerEnd := closeIdx
+
+		// Standalone open tag: consume the entire line.
+		if ls, le, ok := isStandalone(s, openStart, openEnd); ok {
+			consumeFrom = ls
+			innerStart = le
+		}
+
+		// Standalone close tag: consume the entire line.
+		if _, le, ok := isStandalone(s, closeIdx, closeEnd); ok {
+			consumeTo = le
+		}
+
+		inner := s[innerStart:innerEnd]
+		result.WriteString(s[lastEnd:consumeFrom])
 		result.WriteString(fn(key, inner))
-		lastEnd = closeIdx + len(closeTag)
+		lastEnd = consumeTo
 	}
 
 	result.WriteString(s[lastEnd:])

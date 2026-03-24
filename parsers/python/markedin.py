@@ -196,8 +196,14 @@ def _render_template(template: str, ctx: Dict[str, Any]) -> str:
             truthy_branch = inner
             falsy_branch = ""
         else:
-            truthy_branch = inner[:else_idx]
-            falsy_branch = inner[else_idx + len("{{else}}"):]
+            else_end = else_idx + len("{{else}}")
+            sa = _is_standalone(inner, else_idx, else_end)
+            if sa:
+                truthy_branch = inner[:sa[0]]
+                falsy_branch = inner[sa[1]:]
+            else:
+                truthy_branch = inner[:else_idx]
+                falsy_branch = inner[else_end:]
         if _is_truthy(val):
             return protect(_render_template(truthy_branch, ctx))
         return protect(_render_template(falsy_branch, ctx))
@@ -225,24 +231,81 @@ def _render_template(template: str, ctx: Dict[str, Any]) -> str:
     return restore(out)
 
 
+# ─── Standalone tag detection ────────────────────────────────────────────────
+
+
+def _is_standalone(s: str, tag_start: int, tag_end: int):
+    """Check if a tag is the only non-whitespace content on its line.
+
+    Returns (line_start, line_end) if standalone, else None.
+    """
+    # Find start of line
+    line_start = tag_start
+    while line_start > 0 and s[line_start - 1] != "\n":
+        line_start -= 1
+
+    # Only whitespace before tag
+    for i in range(line_start, tag_start):
+        if s[i] not in (" ", "\t"):
+            return None
+
+    # Only whitespace after tag until end of line
+    pos = tag_end
+    while pos < len(s) and s[pos] not in ("\n", "\r"):
+        if s[pos] not in (" ", "\t"):
+            return None
+        pos += 1
+
+    # Consume \r\n or \n
+    if pos < len(s) and s[pos] == "\r":
+        pos += 1
+    if pos < len(s) and s[pos] == "\n":
+        pos += 1
+
+    return (line_start, pos)
+
+
 # ─── Block processing ────────────────────────────────────────────────────────
 
 def _process_blocks(s, open_re, nested_open_re, close_tag, fn):
-    """Walk left-to-right, find matching open/close pairs with depth, call fn."""
+    """Walk left-to-right, find matching open/close pairs with depth, call fn.
+
+    Standalone block tags (alone on a line) have their lines consumed so they
+    don't produce blank lines in the rendered output.
+    """
     result = []
     last_end = 0
     for m in open_re.finditer(s):
         if m.start() < last_end:
             continue
         key = m.group(1)
+        open_start = m.start()
         open_end = m.end()
         close_idx = _find_close(s, nested_open_re, close_tag, open_end)
         if close_idx == -1:
             continue
-        inner = s[open_end:close_idx]
-        result.append(s[last_end:m.start()])
+        close_end = close_idx + len(close_tag)
+
+        consume_from = open_start
+        consume_to = close_end
+        inner_start = open_end
+        inner_end = close_idx
+
+        # Standalone open tag: consume the entire line
+        sa = _is_standalone(s, open_start, open_end)
+        if sa:
+            consume_from = sa[0]
+            inner_start = sa[1]
+
+        # Standalone close tag: consume the entire line
+        sa = _is_standalone(s, close_idx, close_end)
+        if sa:
+            consume_to = sa[1]
+
+        inner = s[inner_start:inner_end]
+        result.append(s[last_end:consume_from])
         result.append(fn(key, inner))
-        last_end = close_idx + len(close_tag)
+        last_end = consume_to
     result.append(s[last_end:])
     return "".join(result)
 

@@ -71,6 +71,32 @@ function formatValue(val) {
   return String(val);
 }
 
+// ─── Standalone tag detection ────────────────────────────────────────────────
+
+function isStandalone(str, tagStart, tagEnd) {
+  // Find start of line containing the tag
+  let lineStart = tagStart;
+  while (lineStart > 0 && str[lineStart - 1] !== '\n') lineStart--;
+
+  // Only whitespace allowed before tag on this line
+  for (let i = lineStart; i < tagStart; i++) {
+    if (str[i] !== ' ' && str[i] !== '\t') return null;
+  }
+
+  // Only whitespace allowed after tag until end of line
+  let pos = tagEnd;
+  while (pos < str.length && str[pos] !== '\n' && str[pos] !== '\r') {
+    if (str[pos] !== ' ' && str[pos] !== '\t') return null;
+    pos++;
+  }
+
+  // Consume \r\n or \n
+  if (pos < str.length && str[pos] === '\r') pos++;
+  if (pos < str.length && str[pos] === '\n') pos++;
+
+  return { lineStart, lineEnd: pos };
+}
+
 // ─── Block processing ────────────────────────────────────────────────────────
 
 function findClose(str, nestedOpenRe, closeTag, from) {
@@ -106,13 +132,34 @@ function processBlocks(str, openRe, nestedOpenRe, closeTag, fn) {
   let lastEnd = 0;
   let m;
   while ((m = openRe.exec(str)) !== null) {
+    const openStart = m.index;
     const openEnd = m.index + m[0].length;
     const closeIdx = findClose(str, nestedOpenRe, closeTag, openEnd);
     if (closeIdx === -1) continue;
-    const inner = str.slice(openEnd, closeIdx);
-    result += str.slice(lastEnd, m.index);
+    const closeEnd = closeIdx + closeTag.length;
+
+    let consumeFrom = openStart;
+    let consumeTo = closeEnd;
+    let innerStart = openEnd;
+    let innerEnd = closeIdx;
+
+    // Standalone open tag: consume the entire line
+    const openSA = isStandalone(str, openStart, openEnd);
+    if (openSA) {
+      consumeFrom = openSA.lineStart;
+      innerStart = openSA.lineEnd;
+    }
+
+    // Standalone close tag: consume the entire line
+    const closeSA = isStandalone(str, closeIdx, closeEnd);
+    if (closeSA) {
+      consumeTo = closeSA.lineEnd;
+    }
+
+    const inner = str.slice(innerStart, innerEnd);
+    result += str.slice(lastEnd, consumeFrom);
     result += fn(m[1], inner);
-    lastEnd = closeIdx + closeTag.length;
+    lastEnd = consumeTo;
     openRe.lastIndex = lastEnd;
   }
   return result + str.slice(lastEnd);
@@ -220,8 +267,21 @@ function renderTemplate(template, ctx) {
     (key, inner) => {
       const val = resolvePath(ctx, key);
       const elseIdx = findTopLevelElse(inner);
-      const truthy = elseIdx === -1 ? inner : inner.slice(0, elseIdx);
-      const falsy  = elseIdx === -1 ? '' : inner.slice(elseIdx + '{{else}}'.length);
+      let truthy, falsy;
+      if (elseIdx === -1) {
+        truthy = inner;
+        falsy = '';
+      } else {
+        const elseEnd = elseIdx + '{{else}}'.length;
+        const elseSA = isStandalone(inner, elseIdx, elseEnd);
+        if (elseSA) {
+          truthy = inner.slice(0, elseSA.lineStart);
+          falsy = inner.slice(elseSA.lineEnd);
+        } else {
+          truthy = inner.slice(0, elseIdx);
+          falsy = inner.slice(elseEnd);
+        }
+      }
       return protect(renderTemplate(isTruthy(val) ? truthy : falsy, ctx));
     }
   );
