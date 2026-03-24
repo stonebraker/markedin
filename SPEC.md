@@ -1,6 +1,6 @@
 # .mi — markedin format spec
 
-**Spec version: 0.3.0**
+**Spec version: 0.4.0**
 
 A `.mi` file is a plain-text document with two sections:
 
@@ -97,6 +97,33 @@ Inline another frontmatter value as raw text without escaping:
 ```
 
 Useful for reusable prose snippets stored in the frontmatter.
+
+### Standalone tag stripping
+
+When a block tag (`{{#each}}`, `{{/each}}`, `{{#if}}`, `{{/if}}`, `{{else}}`) is the only non-whitespace content on its line, the entire line — including the trailing newline — is consumed and produces no output. This prevents block tags from introducing blank lines that would break Markdown constructs like tables.
+
+```
+| Name | Role |
+|------|------|
+{{#each team}}
+| {{name}} | {{role}} |
+{{/each}}
+```
+
+The `{{#each}}` and `{{/each}}` lines are stripped, producing a valid table:
+
+```
+| Name | Role |
+|------|------|
+| Alice | eng |
+| Bob | pm |
+```
+
+A tag that shares its line with other non-whitespace content is **not** standalone and is left in place:
+
+```
+items: {{#each items}}{{this}}, {{/each}}
+```
 
 ### Escaping
 

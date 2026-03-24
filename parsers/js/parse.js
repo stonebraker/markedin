@@ -12,7 +12,7 @@
  *       {{> partial_key}}             — inline another frontmatter string as markdown
  */
 
-const SPEC_VERSION = '0.3.0';
+const SPEC_VERSION = '0.4.0';
 
 const yaml = require('js-yaml');
 const { marked } = require('marked');
