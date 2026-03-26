@@ -2,7 +2,7 @@
 
 Markedin (`.mi`) is a file format for both machines and humans. 🤝 Structured data in the frontmatter, readable prose in the rendered body. No framework required.
 
-Full documentation: [markedin.dev](https://markedin.dev/)
+Explore: [markedin.dev](https://markedin.dev/)
 
 ---
 
