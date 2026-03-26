@@ -1,0 +1,23 @@
+# How markedin compares
+
+All of these tools share the same basic pattern: **YAML frontmatter + templated Markdown body**. They differ in how much scaffolding they require and what they support in the template.
+
+
+| Format                | Loops | Conditionals | Partials | No scaffolding | Multi-runtime | Formal spec |
+| --------------------- | ----- | ------------ | -------- | -------------- | ------------- | ----------- |
+| markedin              | ✓     | ✓            | ✓        | ✓              | ✓             | ✓           |
+| Metalsmith + in-place | ✓     | ✓            | ✓        | —              | —             | —           |
+| Eleventy              | ✓     | ✓            | ✓        | —              | —             | —           |
+| Jekyll                | ✓     | ✓            | ✓        | —              | —             | —           |
+| Hugo                  | —     | —            | —        | —              | —             | —           |
+| pandoc-mustache       | —     | —            | —        | ✓              | —             | —           |
+| docsify-mustache      | ✓     | ✓            | —        | —              | —             | —           |
+| Fractal               | ✓     | ✓            | ✓        | —              | —             | —           |
+
+
+**Loops** — iterate over arrays in the body (`{{#each}}`, `{% for %}`, etc.).  
+**Conditionals** — conditional blocks in the body (`{{#if}}`, `{% if %}`, etc.).  
+**Partials** — inline reusable text snippets from the frontmatter.  
+**No scaffolding** — renders with a single command or function call, no project structure required.  
+**Multi-runtime** — parsers available in more than one language for embedding in applications.  
+**Formal spec** — a versioned specification document defines the format independently of any implementation.  

@@ -45,7 +45,7 @@ First note: {{notes[0]}}
 {{/if}}
 ```
 
-See [SPEC.md](./SPEC.md) for the full format specification.
+See [SPEC.md](./SPEC.md) for the full format specification and [how markedin compares](./docs/comparison.md) to similar tools.
 
 ## Template Expressions
 

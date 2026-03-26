@@ -1,0 +1,78 @@
+---
+title: How markedin compares
+shared: YAML frontmatter + templated Markdown body
+formats:
+  - name: markedin
+    loops: true
+    conditionals: true
+    partials: true
+    no_scaffolding: true
+    multi_runtime: true
+    formal_spec: true
+  - name: Metalsmith + in-place
+    loops: true
+    conditionals: true
+    partials: true
+    no_scaffolding: false
+    multi_runtime: false
+    formal_spec: false
+  - name: Eleventy
+    loops: true
+    conditionals: true
+    partials: true
+    no_scaffolding: false
+    multi_runtime: false
+    formal_spec: false
+  - name: Jekyll
+    loops: true
+    conditionals: true
+    partials: true
+    no_scaffolding: false
+    multi_runtime: false
+    formal_spec: false
+  - name: Hugo
+    loops: false
+    conditionals: false
+    partials: false
+    no_scaffolding: false
+    multi_runtime: false
+    formal_spec: false
+  - name: pandoc-mustache
+    loops: false
+    conditionals: false
+    partials: false
+    no_scaffolding: true
+    multi_runtime: false
+    formal_spec: false
+  - name: docsify-mustache
+    loops: true
+    conditionals: true
+    partials: false
+    no_scaffolding: false
+    multi_runtime: false
+    formal_spec: false
+  - name: Fractal
+    loops: true
+    conditionals: true
+    partials: true
+    no_scaffolding: false
+    multi_runtime: false
+    formal_spec: false
+---
+
+# {{title}}
+
+All of these tools share the same basic pattern: **{{shared}}**. They differ in how much scaffolding they require and what they support in the template.
+
+| Format | Loops | Conditionals | Partials | No scaffolding | Multi-runtime | Formal spec |
+|--------|:-:|:-:|:-:|:-:|:-:|:-:|
+{{#each formats}}
+| {{name}} | {{#if loops}}✓{{else}}—{{/if}} | {{#if conditionals}}✓{{else}}—{{/if}} | {{#if partials}}✓{{else}}—{{/if}} | {{#if no_scaffolding}}✓{{else}}—{{/if}} | {{#if multi_runtime}}✓{{else}}—{{/if}} | {{#if formal_spec}}✓{{else}}—{{/if}} |
+{{/each}}
+
+**Loops** — iterate over arrays in the body (`{{#each}}`, `{% for %}`, etc.).  
+**Conditionals** — conditional blocks in the body (`{{#if}}`, `{% if %}`, etc.).  
+**Partials** — inline reusable text snippets from the frontmatter.  
+**No scaffolding** — renders with a single command or function call, no project structure required.  
+**Multi-runtime** — parsers available in more than one language for embedding in applications.  
+**Formal spec** — a versioned specification document defines the format independently of any implementation.  
