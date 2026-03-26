@@ -139,21 +139,27 @@ _HTML_TEMPLATE = """<!doctype html>
 </html>"""
 
 
-def _render_template(template: str, ctx: Dict[str, Any]) -> str:
+_registry: Dict[str, str] = {}
+_seq = [0]
+
+
+def _render_template(template: str, ctx: Dict[str, Any], _is_root: bool = True) -> str:
     """Render a template string against a context dict."""
-    registry: Dict[str, str] = {}
-    seq = [0]
+    global _registry
+    if _is_root:
+        _registry = {}
+        _seq[0] = 0
 
     def protect(s: str) -> str:
-        tok = f"\x02{seq[0]}\x03"
-        seq[0] += 1
-        registry[tok] = s
+        tok = f"\x02{_seq[0]}\x03"
+        _seq[0] += 1
+        _registry[tok] = s
         return tok
 
     def restore(s: str) -> str:
         out = s
-        for tok in reversed(list(registry.keys())):
-            out = out.replace(tok, registry[tok])
+        for tok in reversed(list(_registry.keys())):
+            out = out.replace(tok, _registry[tok])
         return out
 
     out = template
@@ -179,7 +185,7 @@ def _render_template(template: str, ctx: Dict[str, Any]) -> str:
             item_ctx["@last"] = i == len(val) - 1
             if isinstance(item, dict):
                 item_ctx.update(item)
-            parts.append(_render_template(inner, item_ctx))
+            parts.append(_render_template(inner, item_ctx, False))
         return protect("".join(parts))
 
     out = _process_blocks(out, each_open_re, each_nested_re, each_close, each_handler)
@@ -205,8 +211,8 @@ def _render_template(template: str, ctx: Dict[str, Any]) -> str:
                 truthy_branch = inner[:else_idx]
                 falsy_branch = inner[else_end:]
         if _is_truthy(val):
-            return protect(_render_template(truthy_branch, ctx))
-        return protect(_render_template(falsy_branch, ctx))
+            return protect(_render_template(truthy_branch, ctx, False))
+        return protect(_render_template(falsy_branch, ctx, False))
 
     out = _process_blocks(out, if_open_re, if_nested_re, if_close, if_handler)
 
@@ -228,7 +234,7 @@ def _render_template(template: str, ctx: Dict[str, Any]) -> str:
 
     out = re.sub(r"\{\{([\w.\[\]@]+)\}\}", scalar_replace, out)
 
-    return restore(out)
+    return restore(out) if _is_root else out
 
 
 # ─── Standalone tag detection ────────────────────────────────────────────────

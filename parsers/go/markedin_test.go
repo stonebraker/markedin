@@ -231,6 +231,17 @@ func TestEach(t *testing.T) {
 		assertEqual(t, mustRender(t, src), "yes no ")
 	})
 
+	t.Run("each with if inside — tokens do not collide with outer scalars", func(t *testing.T) {
+		src := miWithBody(
+			"show: true\nitems:\n  - text: A\n    done: true\n  - text: B\n    done: false\ncount: 2",
+			"{{#if show}}\n{{#each items}}\n- {{#if done}}~~{{text}}~~{{else}}{{text}}{{/if}}\n{{/each}}\n**{{count}}**\n{{/if}}",
+		)
+		result := mustRender(t, src)
+		assertContains(t, result, "~~A~~")
+		assertContains(t, result, "B")
+		assertContains(t, result, "**2**")
+	})
+
 	t.Run("if with each inside", func(t *testing.T) {
 		src := miWithBody(
 			"show: true\nitems:\n  - a\n  - b",

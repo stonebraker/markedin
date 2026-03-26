@@ -220,19 +220,21 @@ const HTML_TEMPLATE = `<!doctype html>
 </body>
 </html>`;
 
-function renderTemplate(template, ctx) {
-  const registry = new Map();
-  let seq = 0;
+let _registry, _seq;
+
+function renderTemplate(template, ctx, _isRoot) {
+  const isRoot = _isRoot !== false;
+  if (isRoot) { _registry = new Map(); _seq = 0; }
 
   function protect(str) {
-    const tok = `\x02${seq++}\x03`;
-    registry.set(tok, str);
+    const tok = `\x02${_seq++}\x03`;
+    _registry.set(tok, str);
     return tok;
   }
 
   function restore(str) {
     let out = str;
-    for (const [tok, val] of [...registry.entries()].reverse()) {
+    for (const [tok, val] of [..._registry.entries()].reverse()) {
       out = out.split(tok).join(val);
     }
     return out;
@@ -254,7 +256,7 @@ function renderTemplate(template, ctx) {
       return protect(arr.map((item, i) => {
         const itemCtx = { ...ctx, this: item, '@index': i, '@first': i === 0, '@last': i === arr.length - 1 };
         if (item && typeof item === 'object' && !Array.isArray(item)) Object.assign(itemCtx, item);
-        return renderTemplate(inner, itemCtx);
+        return renderTemplate(inner, itemCtx, false);
       }).join(''));
     }
   );
@@ -282,7 +284,7 @@ function renderTemplate(template, ctx) {
           falsy = inner.slice(elseEnd);
         }
       }
-      return protect(renderTemplate(isTruthy(val) ? truthy : falsy, ctx));
+      return protect(renderTemplate(isTruthy(val) ? truthy : falsy, ctx, false));
     }
   );
 
@@ -299,7 +301,7 @@ function renderTemplate(template, ctx) {
     return protect(formatValue(val));
   });
 
-  return restore(out);
+  return isRoot ? restore(out) : out;
 }
 
-module.exports = { SPEC_VERSION, parse, render, renderHtmlFrag, renderHtml, renderTemplate, resolvePath };
+module.exports = { SPEC_VERSION, parse, render, renderHtmlFrag, renderHtml, renderTemplate, resolvePath, yaml, marked };

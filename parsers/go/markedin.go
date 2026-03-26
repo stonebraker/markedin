@@ -239,34 +239,41 @@ func resolvePath(obj any, path string) any {
 
 // ─── template rendering ─────────────────────────────────────────────────────
 
-func renderTemplate(template string, ctx map[string]any) string {
-	// STX/ETX token protection — same approach as the JS implementation.
-	registry := map[string]string{}
-	seq := 0
+// renderState holds the shared token registry across recursive renderTemplate calls.
+type renderState struct {
+	registry map[string]string
+	seq      int
+}
 
-	protect := func(s string) string {
-		tok := fmt.Sprintf("\x02%d\x03", seq)
-		seq++
-		registry[tok] = s
-		return tok
-	}
+func (rs *renderState) protect(s string) string {
+	tok := fmt.Sprintf("\x02%d\x03", rs.seq)
+	rs.seq++
+	rs.registry[tok] = s
+	return tok
+}
 
-	restore := func(s string) string {
-		// Reverse order: higher seq first.
-		for i := seq - 1; i >= 0; i-- {
-			tok := fmt.Sprintf("\x02%d\x03", i)
-			if val, ok := registry[tok]; ok {
-				s = strings.ReplaceAll(s, tok, val)
-			}
+func (rs *renderState) restore(s string) string {
+	for i := rs.seq - 1; i >= 0; i-- {
+		tok := fmt.Sprintf("\x02%d\x03", i)
+		if val, ok := rs.registry[tok]; ok {
+			s = strings.ReplaceAll(s, tok, val)
 		}
-		return s
 	}
+	return s
+}
 
+func renderTemplate(template string, ctx map[string]any) string {
+	rs := &renderState{registry: map[string]string{}, seq: 0}
+	out := renderTemplateInner(template, ctx, rs)
+	return rs.restore(out)
+}
+
+func renderTemplateInner(template string, ctx map[string]any, rs *renderState) string {
 	out := template
 
 	// 0. \{{ → protect as literal {{
 	out = reEscape.ReplaceAllStringFunc(out, func(match string) string {
-		return protect("{{")
+		return rs.protect("{{")
 	})
 
 	// 1. {{#each key}} … {{/each}}
@@ -274,7 +281,7 @@ func renderTemplate(template string, ctx map[string]any) string {
 		val := resolvePath(ctx, key)
 		arr, ok := val.([]any)
 		if !ok {
-			return protect("")
+			return rs.protect("")
 		}
 		var sb strings.Builder
 		for i, item := range arr {
@@ -288,9 +295,9 @@ func renderTemplate(template string, ctx map[string]any) string {
 					itemCtx[k] = v
 				}
 			}
-			sb.WriteString(renderTemplate(inner, itemCtx))
+			sb.WriteString(renderTemplateInner(inner, itemCtx, rs))
 		}
-		return protect(sb.String())
+		return rs.protect(sb.String())
 	})
 
 	// 2. {{#if key}} … {{else}} … {{/if}}
@@ -311,9 +318,9 @@ func renderTemplate(template string, ctx map[string]any) string {
 			}
 		}
 		if isTruthy(val) {
-			return protect(renderTemplate(truthy, ctx))
+			return rs.protect(renderTemplateInner(truthy, ctx, rs))
 		}
-		return protect(renderTemplate(falsy, ctx))
+		return rs.protect(renderTemplateInner(falsy, ctx, rs))
 	})
 
 	// 3. {{> partial}}
@@ -323,7 +330,7 @@ func renderTemplate(template string, ctx map[string]any) string {
 		if val == nil {
 			return ""
 		}
-		return protect(fmt.Sprintf("%v", val))
+		return rs.protect(fmt.Sprintf("%v", val))
 	})
 
 	// 4. {{key}} scalar interpolation
@@ -333,10 +340,10 @@ func renderTemplate(template string, ctx map[string]any) string {
 		if val == nil {
 			return ""
 		}
-		return protect(formatValue(val))
+		return rs.protect(formatValue(val))
 	})
 
-	return restore(out)
+	return out
 }
 
 // processBlocks walks left-to-right through the string, finds matching

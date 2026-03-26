@@ -164,3 +164,7 @@ Jason Stonebraker · [markedin.dev](https://markedin.dev)
 ## License
 
 Apache 2.0
+
+---
+
+Created and developed by Jason Stonebraker. Built with Claude Opus 4.6.

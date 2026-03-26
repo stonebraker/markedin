@@ -4,9 +4,11 @@
   "description": "Parse and render .mi (markedin) files — YAML frontmatter + templated Markdown",
   "main": "parse.js",
   "files": [
-    "parse.js"
+    "parse.js",
+    "dist/"
   ],
   "scripts": {
+    "build": "esbuild parse.js --bundle --format=iife --global-name=markedin --outfile=dist/markedin.browser.js && esbuild parse.js --bundle --format=iife --global-name=markedin --minify --outfile=dist/markedin.browser.min.js",
     "test": "node --test tests/parse.test.js"
   },
   "repository": {

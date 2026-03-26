@@ -185,6 +185,16 @@ class TestEach(unittest.TestCase):
         )
         self.assertEqual(render(src), "yes no ")
 
+    def test_each_with_if_inside_token_collision(self):
+        src = mi_with_body(
+            "show: true\nitems:\n  - text: A\n    done: true\n  - text: B\n    done: false\ncount: 2",
+            "{{#if show}}\n{{#each items}}\n- {{#if done}}~~{{text}}~~{{else}}{{text}}{{/if}}\n{{/each}}\n**{{count}}**\n{{/if}}",
+        )
+        result = render(src)
+        self.assertIn("~~A~~", result)
+        self.assertIn("B", result)
+        self.assertIn("**2**", result)
+
     def test_if_with_each_inside(self):
         src = mi_with_body(
             "show: true\nitems:\n  - a\n  - b",

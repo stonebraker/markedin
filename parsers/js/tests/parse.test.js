@@ -241,6 +241,17 @@ describe('{{#each}}', () => {
     assert.equal(render(src), 'yes no ');
   });
 
+  test('#each with #if inside — tokens do not collide with outer scalars', () => {
+    const src = miWithBody(
+      'show: true\nitems:\n  - text: A\n    done: true\n  - text: B\n    done: false\ncount: 2',
+      '{{#if show}}\n{{#each items}}\n- {{#if done}}~~{{text}}~~{{else}}{{text}}{{/if}}\n{{/each}}\n**{{count}}**\n{{/if}}'
+    );
+    const result = render(src);
+    assert.ok(result.includes('~~A~~'), 'should contain strikethrough A');
+    assert.ok(result.includes('B'), 'should contain B');
+    assert.ok(result.includes('**2**'), 'should contain count as 2, not clobber the list');
+  });
+
   test('#if with #each inside', () => {
     const src = miWithBody(
       'show: true\nitems:\n  - a\n  - b',
