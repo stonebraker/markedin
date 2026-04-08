@@ -15,8 +15,7 @@
   // Parse and render
   let html = '';
   try {
-    const markdown = render(source);
-    html = marked.parse(markdown);
+    html = markedin.renderHtmlFrag(source);
   } catch (e) {
     html = '<pre style="color:#dc2626;padding:1rem">' + e.message + '</pre>';
   }
@@ -27,7 +26,7 @@
 
   // Set page title from frontmatter if available
   try {
-    const { data } = parse(source);
+    const { data } = markedin.parse(source);
     if (data.title) document.title = data.title;
   } catch (_) {}
 })();

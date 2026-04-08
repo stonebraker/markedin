@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "markedin",
   "description": "Render .mi (markedin) files in the browser",
-  "version": "0.2.0",
+  "version": "0.4.0",
   "browser_specific_settings": {
     "gecko": {
       "id": "markedin@stonebraker"
@@ -13,7 +13,7 @@
     {
       "matches": ["<all_urls>"],
       "include_globs": ["*.mi", "*.mi?*"],
-      "js": ["lib/js-yaml.min.js", "lib/marked.min.js", "parse.js", "content.js"],
+      "js": ["lib/markedin.browser.min.js", "content.js"],
       "css": ["preview.css"],
       "run_at": "document_idle"
     }

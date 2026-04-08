@@ -12,7 +12,10 @@
  *       {{> partial_key}}             — inline another frontmatter string as markdown
  */
 
+const SPEC_VERSION = '0.4.0';
+
 const yaml = require('js-yaml');
+const { marked } = require('marked');
 
 // ─── Frontmatter extraction ───────────────────────────────────────────────────
 
@@ -47,177 +50,229 @@ function resolvePath(obj, path) {
   return cur;
 }
 
-// ─── Render ───────────────────────────────────────────────────────────────────
+// ─── Truthiness ──────────────────────────────────────────────────────────────
 
-function render(source) {
-  const { data, body } = parse(source);
-  return renderTemplate(body, data);
+function isTruthy(val) {
+  if (val == null) return false;
+  if (typeof val === 'boolean') return val;
+  if (typeof val === 'number') return val !== 0;
+  if (typeof val === 'string') return val !== '';
+  if (Array.isArray(val)) return val.length > 0;
+  if (typeof val === 'object') return Object.keys(val).length > 0;
+  return true;
 }
 
-function renderTemplate(template, ctx) {
-  // Use STX/ETX as token delimiters — vanishingly unlikely in real content.
-  // Resolved content and already-rendered blocks are wrapped in these tokens
-  // so subsequent regex passes cannot touch them. Each recursive call has its
-  // own registry; by the time a recursive call returns, its tokens are fully
-  // restored, so the parent call only ever sees clean strings.
-  const registry = new Map();
-  let seq = 0;
+// ─── Format value ────────────────────────────────────────────────────────────
+
+function formatValue(val) {
+  if (val == null) return '';
+  if (Array.isArray(val)) return val.join(', ');
+  if (typeof val === 'object') return JSON.stringify(val);
+  return String(val);
+}
+
+// ─── Standalone tag detection ────────────────────────────────────────────────
+
+function isStandalone(str, tagStart, tagEnd) {
+  // Find start of line containing the tag
+  let lineStart = tagStart;
+  while (lineStart > 0 && str[lineStart - 1] !== '\n') lineStart--;
+
+  // Only whitespace allowed before tag on this line
+  for (let i = lineStart; i < tagStart; i++) {
+    if (str[i] !== ' ' && str[i] !== '\t') return null;
+  }
+
+  // Only whitespace allowed after tag until end of line
+  let pos = tagEnd;
+  while (pos < str.length && str[pos] !== '\n' && str[pos] !== '\r') {
+    if (str[pos] !== ' ' && str[pos] !== '\t') return null;
+    pos++;
+  }
+
+  // Consume \r\n or \n
+  if (pos < str.length && str[pos] === '\r') pos++;
+  if (pos < str.length && str[pos] === '\n') pos++;
+
+  return { lineStart, lineEnd: pos };
+}
+
+// ─── Block processing ────────────────────────────────────────────────────────
+
+function findClose(str, nestedOpenRe, closeTag, from) {
+  let depth = 1;
+  let pos = from;
+  while (depth > 0) {
+    const closeIdx = str.indexOf(closeTag, pos);
+    if (closeIdx === -1) return -1;
+    nestedOpenRe.lastIndex = pos;
+    let nm;
+    while ((nm = nestedOpenRe.exec(str)) !== null && nm.index < closeIdx) {
+      depth++;
+    }
+    if (--depth === 0) return closeIdx;
+    pos = closeIdx + closeTag.length;
+  }
+  return -1;
+}
+
+function findTopLevelElse(content) {
+  const re = /\{\{#if [\w.[\]]+\}\}|\{\{\/if\}\}|\{\{else\}\}/g;
+  let depth = 0, m;
+  while ((m = re.exec(content)) !== null) {
+    if (m[0].startsWith('{{#if ')) depth++;
+    else if (m[0] === '{{/if}}') depth--;
+    else if (m[0] === '{{else}}' && depth === 0) return m.index;
+  }
+  return -1;
+}
+
+function processBlocks(str, openRe, nestedOpenRe, closeTag, fn) {
+  let result = '';
+  let lastEnd = 0;
+  let m;
+  while ((m = openRe.exec(str)) !== null) {
+    const openStart = m.index;
+    const openEnd = m.index + m[0].length;
+    const closeIdx = findClose(str, nestedOpenRe, closeTag, openEnd);
+    if (closeIdx === -1) continue;
+    const closeEnd = closeIdx + closeTag.length;
+
+    let consumeFrom = openStart;
+    let consumeTo = closeEnd;
+    let innerStart = openEnd;
+    let innerEnd = closeIdx;
+
+    // Standalone open tag: consume the entire line
+    const openSA = isStandalone(str, openStart, openEnd);
+    if (openSA) {
+      consumeFrom = openSA.lineStart;
+      innerStart = openSA.lineEnd;
+    }
+
+    // Standalone close tag: consume the entire line
+    const closeSA = isStandalone(str, closeIdx, closeEnd);
+    if (closeSA) {
+      consumeTo = closeSA.lineEnd;
+    }
+
+    const inner = str.slice(innerStart, innerEnd);
+    result += str.slice(lastEnd, consumeFrom);
+    result += fn(m[1], inner);
+    lastEnd = consumeTo;
+    openRe.lastIndex = lastEnd;
+  }
+  return result + str.slice(lastEnd);
+}
+
+// ─── Render ───────────────────────────────────────────────────────────────────
+
+function render(source, { embed = false } = {}) {
+  const { data, body } = parse(source);
+  let out = renderTemplate(body, data);
+  if (embed) {
+    out = out.trimEnd() + '\n\n<!-- frontmatter\n' + JSON.stringify(data, null, 2) + '\n-->\n';
+  }
+  return out;
+}
+
+function renderHtmlFrag(source) {
+  const md = render(source);
+  return marked.parse(md, { gfm: true });
+}
+
+function renderHtml(source, { embed = false } = {}) {
+  const { data, body } = parse(source);
+  const rendered = renderTemplate(body, data);
+  const htmlBody = marked.parse(rendered, { gfm: true });
+  const title = data.title || '';
+  let dataBlock = '';
+  if (embed) {
+    dataBlock = '\n<script type="application/json" id="frontmatter">\n' + JSON.stringify(data, null, 2) + '\n</script>';
+  }
+  return HTML_TEMPLATE.replace('%TITLE%', title).replace('%DATA_BLOCK%', dataBlock).replace('%BODY%', htmlBody);
+}
+
+const HTML_TEMPLATE = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>%TITLE%</title>%DATA_BLOCK%
+<style>
+  body { max-width: 720px; margin: 0 auto; padding: 3rem 1.5rem; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 1.0625rem; line-height: 1.65; color: #1f2937; }
+  h1, h2, h3 { color: #111827; letter-spacing: -.02em; }
+  h1 { font-size: 2rem; margin-bottom: .5rem; }
+  h2 { font-size: 1.4rem; margin-top: 2.5rem; }
+  h3 { font-size: 1.1rem; margin-top: 2rem; }
+  code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: .875em; background: #f3f4f6; padding: .1em .35em; border-radius: 3px; }
+  pre { background: #f3f4f6; border-radius: 6px; padding: 1.25rem; overflow-x: auto; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; padding: .5rem .75rem; border-bottom: 1px solid #e5e7eb; }
+  th { font-size: .8125rem; text-transform: uppercase; letter-spacing: .05em; color: #6b7280; }
+  a { color: #2563eb; }
+  hr { border: none; border-top: 1px solid #e5e7eb; margin: 2.5rem 0; }
+</style>
+</head>
+<body>
+%BODY%
+</body>
+</html>`;
+
+let _registry, _seq;
+
+function renderTemplate(template, ctx, _isRoot) {
+  const isRoot = _isRoot !== false;
+  if (isRoot) { _registry = new Map(); _seq = 0; }
 
   function protect(str) {
-    const tok = `\x02${seq++}\x03`;
-    registry.set(tok, str);
+    const tok = `\x02${_seq++}\x03`;
+    _registry.set(tok, str);
     return tok;
   }
 
   function restore(str) {
-    // Reverse insertion order: a token whose value contains an earlier token
-    // (lower seq) unwraps correctly when the later token (higher seq) resolves
-    // first, exposing the earlier token for the next iteration.
     let out = str;
-    for (const [tok, val] of [...registry.entries()].reverse()) {
+    for (const [tok, val] of [..._registry.entries()].reverse()) {
       out = out.split(tok).join(val);
     }
     return out;
   }
 
-  // Find the closing tag that matches the opening at depth 1, accounting for
-  // nested same-type opens. Returns index of the closing tag, or -1.
-  function findClose(str, nestedOpenRe, closeTag, from) {
-    let depth = 1;
-    let pos = from;
-    while (depth > 0) {
-      const closeIdx = str.indexOf(closeTag, pos);
-      if (closeIdx === -1) return -1;
-      nestedOpenRe.lastIndex = pos;
-      let nm;
-      while ((nm = nestedOpenRe.exec(str)) !== null && nm.index < closeIdx) {
-        depth++;
-      }
-      if (--depth === 0) return closeIdx;
-      pos = closeIdx + closeTag.length;
-    }
-    return -1;
-  }
-
-  // Find {{else}} that sits at the top level of content (not inside a nested
-  // #if block). Returns its index, or -1 if absent.
-  function findTopLevelElse(content) {
-    const re = /\{\{#if [\w.[\]]+\}\}|\{\{\/if\}\}|\{\{else\}\}/g;
-    let depth = 0, m;
-    while ((m = re.exec(content)) !== null) {
-      if (m[0].startsWith('{{#if ')) depth++;
-      else if (m[0] === '{{/if}}') depth--;
-      else if (m[0] === '{{else}}' && depth === 0) return m.index;
-    }
-    return -1;
-  }
-
-  // Standalone tag detection
-  function isStandalone(s, tagStart, tagEnd) {
-    let lineStart = tagStart;
-    while (lineStart > 0 && s[lineStart - 1] !== '\n') lineStart--;
-    for (let i = lineStart; i < tagStart; i++) {
-      if (s[i] !== ' ' && s[i] !== '\t') return null;
-    }
-    let pos = tagEnd;
-    while (pos < s.length && s[pos] !== '\n' && s[pos] !== '\r') {
-      if (s[pos] !== ' ' && s[pos] !== '\t') return null;
-      pos++;
-    }
-    if (pos < s.length && s[pos] === '\r') pos++;
-    if (pos < s.length && s[pos] === '\n') pos++;
-    return { lineStart, lineEnd: pos };
-  }
-
-  // 1. Template expressions interpolate everywhere — including inside fenced
-  // code blocks and inline code spans. The STX/ETX token mechanism already
-  // prevents double-evaluation of resolved values, so no upfront protection
-  // of code blocks is needed.
   let out = template;
 
-  // \{{ → protect as literal {{
+  // 0. \{{ → protect as literal {{
   out = out.replace(/\\\{\{/g, () => protect('{{'));
 
-  // 2. {{#each key}} ... {{/each}}
-  // Walk left-to-right; use depth counting to find each opening tag's true
-  // matching close, so nested #each blocks are passed intact to the inner
-  // renderTemplate call where they execute in the correct item context.
-  {
-    const openRe = /\{\{#each ([\w.[\]]+)\}\}/g;
-    const nestedOpenRe = /\{\{#each [\w.[\]]+\}\}/g;
-    const closeTag = '{{/each}}';
-    let result = '';
-    let lastEnd = 0;
-    let m;
-    while ((m = openRe.exec(out)) !== null) {
-      const openStart = m.index;
-      const openEnd = m.index + m[0].length;
-      const closeIdx = findClose(out, nestedOpenRe, closeTag, openEnd);
-      if (closeIdx === -1) continue;
-      const closeEnd = closeIdx + closeTag.length;
-
-      let consumeFrom = openStart;
-      let consumeTo = closeEnd;
-      let innerStart = openEnd;
-      let innerEnd = closeIdx;
-
-      const openSA = isStandalone(out, openStart, openEnd);
-      if (openSA) { consumeFrom = openSA.lineStart; innerStart = openSA.lineEnd; }
-
-      const closeSA = isStandalone(out, closeIdx, closeEnd);
-      if (closeSA) { consumeTo = closeSA.lineEnd; }
-
-      const inner = out.slice(innerStart, innerEnd);
-      result += out.slice(lastEnd, consumeFrom);
-      const arr = resolvePath(ctx, m[1]);
-      if (!Array.isArray(arr)) {
-        result += protect('');
-      } else {
-        result += protect(arr.map((item, i) => {
-          const itemCtx = { ...ctx, this: item, '@index': i, '@first': i === 0, '@last': i === arr.length - 1 };
-          if (item && typeof item === 'object' && !Array.isArray(item)) Object.assign(itemCtx, item);
-          return renderTemplate(inner, itemCtx);
-        }).join(''));
-      }
-      lastEnd = consumeTo;
-      openRe.lastIndex = lastEnd;
+  // 1. {{#each key}} ... {{/each}}
+  out = processBlocks(out,
+    /\{\{#each ([\w.[\]]+)\}\}/g,
+    /\{\{#each [\w.[\]]+\}\}/g,
+    '{{/each}}',
+    (key, inner) => {
+      const arr = resolvePath(ctx, key);
+      if (!Array.isArray(arr)) return protect('');
+      return protect(arr.map((item, i) => {
+        const itemCtx = { ...ctx, this: item, '@index': i, '@first': i === 0, '@last': i === arr.length - 1 };
+        if (item && typeof item === 'object' && !Array.isArray(item)) Object.assign(itemCtx, item);
+        return renderTemplate(inner, itemCtx, false);
+      }).join(''));
     }
-    out = result + out.slice(lastEnd);
-  }
+  );
 
-  // 3. {{#if key}} ... {{else}} ... {{/if}}
-  // Same depth-counting approach; {{else}} is located at the top level of the
-  // captured inner content so nested #if/else pairs are handled correctly.
-  {
-    const openRe = /\{\{#if ([\w.[\]]+)\}\}/g;
-    const nestedOpenRe = /\{\{#if [\w.[\]]+\}\}/g;
-    const closeTag = '{{/if}}';
-    let result = '';
-    let lastEnd = 0;
-    let m;
-    while ((m = openRe.exec(out)) !== null) {
-      const openStart = m.index;
-      const openEnd = m.index + m[0].length;
-      const closeIdx = findClose(out, nestedOpenRe, closeTag, openEnd);
-      if (closeIdx === -1) continue;
-      const closeEnd = closeIdx + closeTag.length;
-
-      let consumeFrom = openStart;
-      let consumeTo = closeEnd;
-      let innerStart = openEnd;
-      let innerEnd = closeIdx;
-
-      const openSA = isStandalone(out, openStart, openEnd);
-      if (openSA) { consumeFrom = openSA.lineStart; innerStart = openSA.lineEnd; }
-
-      const closeSA = isStandalone(out, closeIdx, closeEnd);
-      if (closeSA) { consumeTo = closeSA.lineEnd; }
-
-      const inner = out.slice(innerStart, innerEnd);
+  // 2. {{#if key}} ... {{else}} ... {{/if}}
+  out = processBlocks(out,
+    /\{\{#if ([\w.[\]]+)\}\}/g,
+    /\{\{#if [\w.[\]]+\}\}/g,
+    '{{/if}}',
+    (key, inner) => {
+      const val = resolvePath(ctx, key);
       const elseIdx = findTopLevelElse(inner);
       let truthy, falsy;
       if (elseIdx === -1) {
-        truthy = inner; falsy = '';
+        truthy = inner;
+        falsy = '';
       } else {
         const elseEnd = elseIdx + '{{else}}'.length;
         const elseSA = isStandalone(inner, elseIdx, elseEnd);
@@ -229,33 +284,24 @@ function renderTemplate(template, ctx) {
           falsy = inner.slice(elseEnd);
         }
       }
-      result += out.slice(lastEnd, consumeFrom);
-      const val = resolvePath(ctx, m[1]);
-      const isTruthy = val && (typeof val !== 'object' || Object.keys(val).length > 0) && (!Array.isArray(val) || val.length > 0);
-      result += protect(renderTemplate(isTruthy ? truthy : falsy, ctx));
-      lastEnd = consumeTo;
-      openRe.lastIndex = lastEnd;
+      return protect(renderTemplate(isTruthy(val) ? truthy : falsy, ctx, false));
     }
-    out = result + out.slice(lastEnd);
-  }
+  );
 
-  // 4. {{> partial_key}} — inline a frontmatter string value as-is
+  // 3. {{> partial_key}}
   out = out.replace(/\{\{> ?([\w.[\]]+)\}\}/g, (_, path) => {
     const val = resolvePath(ctx, path);
     return val != null ? protect(String(val)) : '';
   });
 
-  // 5. {{key}} — scalar interpolation
+  // 4. {{key}} — scalar interpolation
   out = out.replace(/\{\{([\w.[\]@]+)\}\}/g, (_, path) => {
     const val = resolvePath(ctx, path);
     if (val == null) return '';
-    if (Array.isArray(val)) return protect(val.join(', '));
-    if (typeof val === 'object') return protect(JSON.stringify(val));
-    return protect(String(val));
+    return protect(formatValue(val));
   });
 
-  // 6. Restore all protected content
-  return restore(out);
+  return isRoot ? restore(out) : out;
 }
 
-module.exports = { parse, render, renderTemplate, resolvePath };
+module.exports = { SPEC_VERSION, parse, render, renderHtmlFrag, renderHtml, renderTemplate, resolvePath, yaml, marked };
