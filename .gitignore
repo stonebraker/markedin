@@ -8,4 +8,5 @@ STYLE-GUIDE.html
 
 # Claude Code project files
 .claude/
+CLAUDE.md
 .DS_Store
