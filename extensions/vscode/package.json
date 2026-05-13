@@ -4,6 +4,15 @@
   "description": "Preview and syntax highlighting for .mi (markedin) files",
   "version": "0.4.0",
   "publisher": "stonebraker",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/stonebraker/markedin.git",
+    "directory": "extensions/vscode"
+  },
+  "homepage": "https://github.com/stonebraker/markedin",
+  "bugs": {
+    "url": "https://github.com/stonebraker/markedin/issues"
+  },
   "engines": { "vscode": "^1.74.0" },
   "categories": ["Languages", "Visualization"],
   "activationEvents": ["onLanguage:mi"],

@@ -3,6 +3,12 @@ node_modules/
 cli/mi
 cli/cli
 
+# Extension build artifacts (re-buildable from source)
+extensions/*/dist/
+
+# Extension store-submission assets (kept out of repo by preference)
+extensions/*/store-assets/
+
 # Internal design reference
 STYLE-GUIDE.html
 
