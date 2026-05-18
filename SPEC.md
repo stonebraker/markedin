@@ -1,6 +1,8 @@
-# .mi — markedin format spec
+# Markedin&trade; Specification — the .mi file format
 
 **Spec version: 0.4.0**
+
+`.mi` is a file format that binds a Markdown body to structured data (YAML) through inline template expressions, in one file — the data is the single source of truth; the document is rendered from it. Agents edit the data; humans read the document.
 
 A `.mi` file is a plain-text document with two sections:
 

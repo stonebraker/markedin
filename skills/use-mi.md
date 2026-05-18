@@ -1,6 +1,6 @@
 # Skill: use-mi
 
-Use the markedin parsers to read, render, and manipulate `.mi` files programmatically.
+Use the Markedin parsers to read, render, and manipulate `.mi` files programmatically.
 
 ## Parsers
 

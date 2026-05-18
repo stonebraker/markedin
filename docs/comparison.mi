@@ -1,8 +1,8 @@
 ---
-title: How markedin compares
+title: How Markedin compares
 shared: YAML frontmatter + templated Markdown body
 formats:
-  - name: markedin
+  - name: Markedin
     loops: true
     conditionals: true
     partials: true
@@ -64,7 +64,7 @@ formats:
 
 All of these tools share the same basic pattern: **{{shared}}**. They differ in how much scaffolding they require and what they support in the template.
 
-| Format | Loops | Conditionals | Partials | No scaffolding | Multi-runtime | Formal spec |
+| Tool | Loops | Conditionals | Partials | No scaffolding | Multi-runtime | Formal spec |
 |--------|:-:|:-:|:-:|:-:|:-:|:-:|
 {{#each formats}}
 | {{name}} | {{#if loops}}✓{{else}}—{{/if}} | {{#if conditionals}}✓{{else}}—{{/if}} | {{#if partials}}✓{{else}}—{{/if}} | {{#if no_scaffolding}}✓{{else}}—{{/if}} | {{#if multi_runtime}}✓{{else}}—{{/if}} | {{#if formal_spec}}✓{{else}}—{{/if}} |

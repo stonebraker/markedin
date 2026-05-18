@@ -21,7 +21,7 @@
     "url": "https://github.com/stonebraker/markedin/issues"
   },
   "author": "Jason Stonebraker",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "keywords": [
     "markedin",
     "mi",

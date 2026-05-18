@@ -1,11 +1,11 @@
-# How markedin compares
+# How Markedin compares
 
 All of these tools share the same basic pattern: **YAML frontmatter + templated Markdown body**. They differ in how much scaffolding they require and what they support in the template.
 
 
-| Format                | Loops | Conditionals | Partials | No scaffolding | Multi-runtime | Formal spec |
+| Tool                  | Loops | Conditionals | Partials | No scaffolding | Multi-runtime | Formal spec |
 | --------------------- | ----- | ------------ | -------- | -------------- | ------------- | ----------- |
-| markedin              | ✓     | ✓            | ✓        | ✓              | ✓             | ✓           |
+| Markedin              | ✓     | ✓            | ✓        | ✓              | ✓             | ✓           |
 | Metalsmith + in-place | ✓     | ✓            | ✓        | —              | —             | —           |
 | Eleventy              | ✓     | ✓            | ✓        | —              | —             | —           |
 | Jekyll                | ✓     | ✓            | ✓        | —              | —             | —           |

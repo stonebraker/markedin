@@ -1,6 +1,6 @@
 # Skill: write-mi
 
-Write well-formed `.mi` (markedin) files.
+Write well-formed `.mi` files.
 
 ## What is a .mi file
 

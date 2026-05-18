@@ -1,12 +1,14 @@
-# markedin
+# Markedin&trade;
 
-Markedin (`.mi`) is a file format for both machines and humans. 🤝 Structured data in the frontmatter, readable prose in the rendered body. No framework required.
+Markedin is a suite of tools for working with `.mi` files: one file where an agent reads and writes structured data (YAML) and the human-readable document (Markdown) renders from it — no separate data file, no sync problem, no framework required.
+
+`.mi` is a file format that binds a Markdown body to structured data (YAML) through inline template expressions, in one file — the data is the single source of truth; the document is rendered from it. Agents edit the data; humans read the document.
 
 Explore: [markedin.dev](https://markedin.dev/)
 
 ---
 
-## Markedin .mi Format
+## The .mi Format
 
 A `.mi` file has YAML frontmatter between `---` delimiters and a Markdown body that renders from it.
 
@@ -45,7 +47,7 @@ First note: {{notes[0]}}
 {{/if}}
 ```
 
-See [SPEC.md](./SPEC.md) for the full format specification and [how markedin compares](./docs/comparison.md) to similar tools.
+See [SPEC.md](./SPEC.md) for the full format specification and [how Markedin compares](./docs/comparison.md) to similar tools.
 
 ## Template Expressions
 
@@ -164,6 +166,12 @@ Jason Stonebraker · [markedin.dev](https://markedin.dev)
 ## License
 
 Apache 2.0
+
+## Trademark
+
+Markedin is a trademark of Jason Stonebraker. The Apache 2.0 license covers the
+code; it does not grant rights to the Markedin name or brand. See
+[TRADEMARK.md](./TRADEMARK.md) for permitted uses.
 
 ---
 
