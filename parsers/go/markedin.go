@@ -1,4 +1,5 @@
-// Package markedin parses and renders .mi (markedin) files.
+// Package markedin is the Markedin parser for .mi files: structured data
+// (YAML) plus a Markdown document that renders from it.
 //
 // A .mi file has YAML frontmatter between --- delimiters followed by a
 // Markdown body with template expressions that reference the frontmatter.

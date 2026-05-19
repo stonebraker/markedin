@@ -1,11 +1,13 @@
 {
   "name": "markedin-parser",
-  "version": "0.4.0",
-  "description": "Parse and render .mi (markedin) files — YAML frontmatter + templated Markdown",
+  "version": "0.4.1",
+  "description": "The Markedin parser for .mi files — structured data (YAML) plus a Markdown document that renders from it.",
   "main": "parse.js",
   "files": [
     "parse.js",
-    "dist/"
+    "dist/",
+    "LICENSE",
+    "NOTICE"
   ],
   "scripts": {
     "build": "esbuild parse.js --bundle --format=iife --global-name=markedin --outfile=dist/markedin.browser.js && esbuild parse.js --bundle --format=iife --global-name=markedin --minify --outfile=dist/markedin.browser.min.js",

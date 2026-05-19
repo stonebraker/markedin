@@ -1,5 +1,6 @@
 """
-.mi (markedin) parser
+The Markedin parser for .mi files — structured data (YAML) plus a Markdown
+document that renders from it.
 
 Format spec:
   - YAML frontmatter between --- delimiters

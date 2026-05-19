@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Markedin",
-  "description": "Render .mi (Markedin) files in the browser",
-  "version": "0.4.0",
+  "name": "Markedin Parser",
+  "description": "Render .mi files in your browser. An .mi file binds a Markdown body to structured data (YAML) via template expressions.",
+  "version": "0.4.0.1",
   "homepage_url": "https://github.com/stonebraker/markedin",
   "browser_specific_settings": {
     "gecko": {

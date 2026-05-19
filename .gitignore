@@ -7,6 +7,7 @@ cli/cli
 extensions/*/dist/
 
 # Extension store-submission assets (kept out of repo by preference)
+extensions/store-assets/
 extensions/*/store-assets/
 
 # Internal design reference

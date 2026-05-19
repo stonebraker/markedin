@@ -1,8 +1,9 @@
 {
   "name": "markedin",
-  "displayName": "markedin",
-  "description": "Preview and syntax highlighting for .mi (markedin) files",
-  "version": "0.4.0",
+  "displayName": "Markedin Parser",
+  "description": "Live preview and syntax highlighting for .mi files (YAML data + templated Markdown)",
+  "icon": "icon.png",
+  "version": "0.4.1",
   "publisher": "stonebraker",
   "repository": {
     "type": "git",

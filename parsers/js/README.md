@@ -1,8 +1,12 @@
 # markedin-parser
 
-Markedin (`.mi`) is a file format for both machines and humans. YAML frontmatter + templated Markdown.
+The Markedin parser for `.mi` files — structured data (YAML) plus a Markdown document that renders from it.
 
-`markedin-parser` parses and renders `.mi` (markedin) files. No framework required. Perfect for file-based agentic systems.
+`.mi` is a file format that binds a Markdown body to structured data (YAML) through inline template expressions, in one file — the data is the single source of truth; the document is rendered from it. Agents edit the data; humans read the document.
+
+*Markedin* takes its name from **Markdown** — a Markdown file with the data marked in.
+
+No framework required. Perfect for file-based agentic systems.
 
 Full documentation at [markedin.dev](https://markedin.dev)
 
@@ -12,7 +16,7 @@ Full documentation at [markedin.dev](https://markedin.dev)
 npm install markedin-parser
 ```
 
-## Markedin .mi Format
+## The `.mi` Format
 
 A `.mi` file has YAML frontmatter between `---` delimiters and a Markdown body that renders from it.
 
@@ -64,7 +68,7 @@ First note: {{notes[0]}}
 | `{{> key}}`                        | Inline a frontmatter string as raw text      |
 | `\{{key}}`                         | Render `{{key}}` literally (escape)          |
 
-## Parsing and Rendering a Markedin File
+## Parsing and Rendering an `.mi` File
 
 ```javascript
 const fs = require("fs");
