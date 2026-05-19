@@ -4,6 +4,8 @@
 
 `.mi` is a file format that binds a Markdown body to structured data (YAML) through inline template expressions, in one file — the data is the single source of truth; the document is rendered from it. Agents edit the data; humans read the document.
 
+*Markedin* takes its name from **Markdown** — a Markdown file with the data marked in.
+
 A `.mi` file is a plain-text document with two sections:
 
 1. **YAML frontmatter** — structured, machine-readable data
@@ -160,4 +162,4 @@ After template expressions are resolved, the body is rendered as Markdown. Parse
 | Product spec | features, owners, milestones | rationale, decisions |
 | Config docs | env vars, defaults, types | usage explanation |
 | Release notes | version, date, items | tone, context |
-| Resume / profile | skills, experience, contact | narrative bio |
+| Runbook | services, steps, escalation | procedure, context |

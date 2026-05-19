@@ -4,6 +4,8 @@ Markedin is a suite of tools for working with `.mi` files: one file where an age
 
 `.mi` is a file format that binds a Markdown body to structured data (YAML) through inline template expressions, in one file — the data is the single source of truth; the document is rendered from it. Agents edit the data; humans read the document.
 
+*Markedin* takes its name from **Markdown** — a Markdown file with the data marked in.
+
 Explore: [markedin.dev](https://markedin.dev/)
 
 ---
