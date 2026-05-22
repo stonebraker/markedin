@@ -53,15 +53,17 @@ See [SPEC.md](./SPEC.md) for the full format specification and [how Markedin com
 
 ## Template Expressions
 
-| Expression                         | Description                                  |
-| ---------------------------------- | -------------------------------------------- |
-| `{{key}}`                          | Scalar value (arrays render comma-separated) |
-| `{{key.nested}}`                   | Dot-path into objects                        |
-| `{{array[0]}}`                     | Array index access                           |
-| `{{#each items}}...{{/each}}`      | Iterate an array                             |
-| `{{#if key}}...{{else}}...{{/if}}` | Conditional block                            |
-| `{{> key}}`                        | Inline a frontmatter string as raw text      |
-| `\{{key}}`                         | Render `{{key}}` literally (escape)          |
+| Expression                         | Description                                                |
+| ---------------------------------- | ---------------------------------------------------------- |
+| `{{key}}`                          | Scalar value substituted raw (arrays render comma-separated) |
+| `{{key.nested}}`                   | Dot-path into objects                                      |
+| `{{array[0]}}`                     | Array index access                                         |
+| `{{#each items}}...{{/each}}`      | Iterate an array (lookups scoped to the current item)      |
+| `{{#if key}}...{{else}}...{{/if}}` | Conditional block                                          |
+| `{{> key}}`                        | Inline a frontmatter string as raw text                    |
+| `\{{key}}`                         | Render `{{key}}` literally (escape)                        |
+
+Template substitution is raw — substituted values are inserted verbatim into the markdown body. HTML safety is handled at HTML render time: raw HTML in the body (whether authored or substituted) is neutralized by the markdown renderer — escaped to entities by the JS and Python parsers, stripped with a comment by the Go parser. Code-block contents are unaffected (they go through the markdown renderer's standard code-block escaping, which the browser displays back as the original characters). See [`SPEC.md`](./SPEC.md) for full semantics.
 
 ---
 

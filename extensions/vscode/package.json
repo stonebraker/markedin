@@ -3,7 +3,7 @@
   "displayName": "Markedin Parser",
   "description": "Live preview and syntax highlighting for .mi files (YAML data + templated Markdown)",
   "icon": "icon.png",
-  "version": "0.4.1",
+  "version": "0.4.3",
   "publisher": "stonebraker",
   "repository": {
     "type": "git",
@@ -14,16 +14,28 @@
   "bugs": {
     "url": "https://github.com/stonebraker/markedin/issues"
   },
-  "engines": { "vscode": "^1.74.0" },
-  "categories": ["Languages", "Visualization"],
-  "activationEvents": ["onLanguage:mi"],
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Languages",
+    "Visualization"
+  ],
+  "activationEvents": [
+    "onLanguage:mi"
+  ],
   "main": "./extension.js",
   "contributes": {
     "languages": [
       {
         "id": "mi",
-        "aliases": ["markedin", "mi"],
-        "extensions": [".mi"],
+        "aliases": [
+          "markedin",
+          "mi"
+        ],
+        "extensions": [
+          ".mi"
+        ],
         "configuration": "./language-configuration.json"
       }
     ],

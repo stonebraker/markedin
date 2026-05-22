@@ -4,6 +4,8 @@ Run with: python3 -m pytest test_markedin.py -v
 """
 
 import json
+import os
+import re
 import unittest
 
 import markdown
@@ -219,6 +221,45 @@ class TestEach(unittest.TestCase):
         src = mi_with_body("items:\n  - x", "{{#each items}}{{@first}},{{@last}}{{/each}}")
         self.assertEqual(render(src), "true,true")
 
+    # ─── Scope: no fall-through to outer/root (SPEC.md 0.4.3) ──────────────
+
+    def test_each_does_not_fall_through_to_root_for_scalar(self):
+        src = mi_with_body(
+            "theme: dark\nitems:\n  - id: a\n  - id: b",
+            "{{#each items}}[{{id}}={{theme}}]{{/each}}",
+        )
+        self.assertEqual(render(src), "[a=][b=]")
+
+    def test_each_does_not_fall_through_to_root_for_if(self):
+        # Load-bearing failure mode: root-level `breakpoints` was bleeding
+        # into iteration items that lacked it, rendering a JSON wall.
+        src = mi_with_body(
+            "breakpoints:\n  - name: xs\nitems:\n  - id: a\n  - id: b\n    breakpoints:\n      - xs",
+            "{{#each items}}{{id}}{{#if breakpoints}}/{{breakpoints}}{{/if}};{{/each}}",
+        )
+        self.assertEqual(render(src), "a;b/xs;")
+
+    def test_nested_each_inner_does_not_see_outer_iteration_fields(self):
+        src = mi_with_body(
+            "rows:\n  - tag: A\n    cells:\n      - n: 1\n      - n: 2",
+            "{{#each rows}}{{#each cells}}({{n}}|{{tag}}){{/each}}{{/each}}",
+        )
+        self.assertEqual(render(src), "(1|)(2|)")
+
+    def test_nested_each_inner_does_not_find_root_fields(self):
+        src = mi_with_body(
+            "theme: dark\nrows:\n  - cells:\n      - n: 1",
+            "{{#each rows}}{{#each cells}}[{{n}}|{{theme}}]{{/each}}{{/each}}",
+        )
+        self.assertEqual(render(src), "[1|]")
+
+    def test_intrinsic_iteration_vars_stay_available(self):
+        src = mi_with_body(
+            "items:\n  - a\n  - b",
+            "{{#each items}}{{@index}}:{{this}}/{{@first}}/{{@last}};{{/each}}",
+        )
+        self.assertEqual(render(src), "0:a/true/false;1:b/false/true;")
+
 
 # ─── #if ─────────────────────────────────────────────────────────────────────
 
@@ -400,6 +441,55 @@ class TestRenderHtmlFrag(unittest.TestCase):
         html = render_html_frag(src)
         self.assertIn("<table>", html)
 
+    # ─── HTML safety (SPEC.md 0.4.3) ──────────────────────────────────────
+    # Regression tests for both the original <title>-destroys-body bug and
+    # the 0.4.2 code-block double-escape regression.
+
+    def test_substituted_title_is_escaped(self):
+        src = mi_with_body('role: "Document <title> for the page."', "- **Role:** {{role}}")
+        html = render_html_frag(src)
+        self.assertIn("&lt;title&gt;", html)
+        # No raw <title> tag anywhere.
+        import re
+        self.assertIsNone(re.search(r"<title\b", html))
+
+    def test_substituted_script_is_escaped(self):
+        src = mi_with_body('payload: "<script>alert(1)</script>"', "{{payload}}")
+        html = render_html_frag(src)
+        self.assertIn("&lt;script&gt;", html)
+        import re
+        self.assertIsNone(re.search(r"<script\b", html))
+
+    def test_json_inside_fenced_code_block_is_not_double_escaped(self):
+        """The 0.4.2 regression check: {{body}} containing JSON inside a ```json
+        block must render with single-level entity escape, NOT double-escape."""
+        src = ('---\n'
+               'body: \'{"id": "usr_01", "role": "user"}\'\n'
+               '---\n\n'
+               '```json\n'
+               '{{body}}\n'
+               '```\n')
+        html = render_html_frag(src)
+        # Single-level &quot; (browser decodes to ") — not double-escaped.
+        self.assertIn("&quot;id&quot;", html)
+        self.assertNotIn("&amp;quot;", html)
+        # Code block opened.
+        self.assertIn('<pre><code class="language-json">', html)
+
+    def test_inline_div_in_body_is_escaped(self):
+        src = mi_with_body("", '<div class="callout">x</div>')
+        html = render_html_frag(src)
+        import re
+        self.assertIsNone(re.search(r"<div\b", html))
+        self.assertIn("&lt;div", html)
+
+    def test_markdown_formatting_in_yaml_values_still_renders(self):
+        # No template-time escape — markdown inside YAML scalars still renders.
+        src = mi_with_body('summary: "**bold** _italic_"', "{{summary}}")
+        html = render_html_frag(src)
+        self.assertIn("<strong>bold</strong>", html)
+        self.assertIn("<em>italic</em>", html)
+
 
 class TestRenderHtml(unittest.TestCase):
     def test_full_document(self):
@@ -467,6 +557,66 @@ class TestRenderEmbed(unittest.TestCase):
         src = mi_with_body("title: Hello", "# {{title}}")
         out = render(src)
         self.assertNotIn("<!-- frontmatter", out)
+
+
+# ─── Shared cross-parser fixtures + examples-sweep (SPEC.md 0.4.3) ──────────
+
+
+class TestSharedFixtures(unittest.TestCase):
+    FIXTURES = os.path.join(os.path.dirname(__file__), "..", "..", "fixtures")
+    NAMES = ["each-scope-no-fallback", "code-block-interpolation", "raw-html-in-scalar"]
+
+    def test_render_byte_identical_to_expected_md(self):
+        for name in self.NAMES:
+            with self.subTest(fixture=name):
+                with open(os.path.join(self.FIXTURES, f"{name}.mi")) as f:
+                    src = f.read()
+                with open(os.path.join(self.FIXTURES, f"{name}.expected.md")) as f:
+                    want = f.read()
+                self.assertEqual(render(src), want, f"fixture mismatch for {name}")
+
+
+class TestSharedFixturesHTMLSafety(unittest.TestCase):
+    FIXTURES = os.path.join(os.path.dirname(__file__), "..", "..", "fixtures")
+
+    def test_raw_html_in_scalar_has_no_live_tags(self):
+        with open(os.path.join(self.FIXTURES, "raw-html-in-scalar.mi")) as f:
+            src = f.read()
+        html = render_html_frag(src)
+        for pattern in [r"<title\b", r"<script\b", r"<b\b"]:
+            self.assertIsNone(re.search(pattern, html),
+                              f"expected no raw tag matching {pattern} in HTML:\n{html}")
+
+    def test_code_block_interpolation_no_double_escape(self):
+        with open(os.path.join(self.FIXTURES, "code-block-interpolation.mi")) as f:
+            src = f.read()
+        html = render_html_frag(src)
+        self.assertNotIn("&amp;quot;", html,
+                         f"&amp;quot; double-escape regression detected:\n{html}")
+        self.assertIn('<pre><code class="language-json">', html,
+                      f"expected fenced code block; got:\n{html}")
+
+
+class TestExamplesSweep(unittest.TestCase):
+    """Render every .mi under examples/ through render_html_frag, assert no
+    double-escape artifacts and no raw <title>/<script> tags."""
+
+    EXAMPLES = os.path.join(os.path.dirname(__file__), "..", "..", "examples")
+
+    def test_all_examples_render_safely(self):
+        files = [f for f in os.listdir(self.EXAMPLES) if f.endswith(".mi")]
+        self.assertGreater(len(files), 0, "examples/ has at least one .mi to sweep")
+        for name in files:
+            with self.subTest(example=name):
+                with open(os.path.join(self.EXAMPLES, name)) as f:
+                    src = f.read()
+                html = render_html_frag(src)
+                for bad in ("&amp;quot;", "&amp;lt;", "&amp;gt;"):
+                    self.assertNotIn(bad, html,
+                                     f"double-escape artifact {bad!r} in {name}")
+                for pattern in (r"<title\b", r"<script\b"):
+                    self.assertIsNone(re.search(pattern, html),
+                                      f"raw tag matching {pattern} in {name}:\n{html}")
 
 
 if __name__ == "__main__":

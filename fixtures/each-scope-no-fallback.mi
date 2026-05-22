@@ -1,0 +1,15 @@
+---
+theme: dark
+breakpoints:
+  - name: xs
+items:
+  - id: a
+  - id: b
+    breakpoints:
+      - xs
+---
+# Scope
+
+{{#each items}}
+- **{{id}}** theme={{theme}}{{#if breakpoints}} bp={{breakpoints}}{{/if}}
+{{/each}}

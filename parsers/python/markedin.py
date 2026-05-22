@@ -13,7 +13,7 @@ Format spec:
       {{> partial_key}}              — inline another frontmatter string
 """
 
-SPEC_VERSION = "0.4.0"
+SPEC_VERSION = "0.4.3"
 
 import json
 import os
@@ -22,6 +22,55 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import markdown as md_lib
 import yaml
+from markdown.postprocessors import Postprocessor
+
+
+# ─── HTML safety per SPEC.md 0.4.3 ───────────────────────────────────────────
+# Raw HTML in the markdown body is escaped at HTML-render time. Substitution
+# is raw; escape happens here. Fenced/indented code blocks are unaffected
+# because their stash entries start with "<pre" — the heuristic below skips
+# them, leaving their single-level entity escape from python-markdown alone.
+
+def _html_escape(s: str) -> str:
+    return (s.replace("&", "&amp;")
+             .replace("<", "&lt;")
+             .replace(">", "&gt;")
+             .replace('"', "&quot;")
+             .replace("'", "&#39;"))
+
+
+class _EscapeRawHtmlPostprocessor(Postprocessor):
+    def run(self, text: str) -> str:
+        stash = self.md.htmlStash
+        for i in range(len(stash.rawHtmlBlocks)):
+            block = stash.rawHtmlBlocks[i]
+            if isinstance(block, tuple):
+                html, safe = block
+                if not html.lstrip().startswith("<pre"):
+                    stash.rawHtmlBlocks[i] = (_html_escape(html), safe)
+            else:
+                if not block.lstrip().startswith("<pre"):
+                    stash.rawHtmlBlocks[i] = _html_escape(block)
+        return text
+
+
+class _EscapeRawHtmlExtension(md_lib.Extension):
+    def extendMarkdown(self, md):
+        # Priority > 30 so this runs before raw_html (default 30).
+        md.postprocessors.register(_EscapeRawHtmlPostprocessor(md), "escape_raw_html", 35)
+
+
+# Module-level extension list — used by both render_html_frag and render_html
+# so they can't drift again. fenced_code added in 0.4.3 (was previously
+# missing from both, so fenced code blocks in .mi files weren't rendering).
+_MD_EXTENSIONS = [
+    "fenced_code",
+    "tables",
+    "pymdownx.tilde",
+    "pymdownx.tasklist",
+    "pymdownx.magiclink",
+    _EscapeRawHtmlExtension(),
+]
 
 
 # ─── Frontmatter extraction ─────────────────────────────────────────────────
@@ -92,7 +141,7 @@ def render(source: str, embed: bool = False) -> str:
 def render_html_frag(source: str) -> str:
     """Render source to an HTML fragment (no document wrapper)."""
     markdown = render(source)
-    return md_lib.markdown(markdown, extensions=["tables", "pymdownx.tilde", "pymdownx.tasklist", "pymdownx.magiclink"])
+    return md_lib.markdown(markdown, extensions=_MD_EXTENSIONS)
 
 
 def render_html(source: str, embed: bool = False) -> str:
@@ -102,7 +151,7 @@ def render_html(source: str, embed: bool = False) -> str:
     """
     data, body = parse(source)
     markdown = _render_template(body, data)
-    html_body = md_lib.markdown(markdown, extensions=["tables"])
+    html_body = md_lib.markdown(markdown, extensions=_MD_EXTENSIONS)
     title = data.get("title", "")
     data_block = ""
     if embed:
@@ -174,12 +223,15 @@ def _render_template(template: str, ctx: Dict[str, Any], _is_root: bool = True) 
     each_close = "{{/each}}"
 
     def each_handler(key: str, inner: str) -> str:
+        # Scope per SPEC.md 0.4.3: lookups inside the block resolve against
+        # the current iteration item only — no fall-through to an enclosing
+        # or root scope. item_ctx therefore starts fresh, not from dict(ctx).
         val = resolve_path(ctx, key)
         if not isinstance(val, list):
             return protect("")
         parts = []
         for i, item in enumerate(val):
-            item_ctx = dict(ctx)
+            item_ctx: Dict[str, Any] = {}
             item_ctx["this"] = item
             item_ctx["@index"] = i
             item_ctx["@first"] = i == 0
@@ -385,5 +437,7 @@ def _format_value(val: Any) -> str:
     if isinstance(val, list):
         return ", ".join(str(item) for item in val)
     if isinstance(val, dict):
-        return json.dumps(val, separators=(",", ": "))
+        # separators=(",", ":") matches JS JSON.stringify and Go json.Marshal
+        # byte-for-byte for object interpolation (cross-parser equivalence).
+        return json.dumps(val, separators=(",", ":"))
     return str(val)

@@ -11,6 +11,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/stonebraker/markedin/parsers/go"
@@ -157,6 +159,57 @@ func runCheck(args []string) {
 		lines = 0
 	}
 	fmt.Printf("✓ Body: %d line(s)\n", lines)
+
+	// Defense-in-depth lint: surface raw HTML-tag-like patterns in scalar
+	// values. The renderer neutralizes these at HTML-render time per SPEC.md
+	// 0.4.3 (escaped to entities by JS/Python, stripped with a comment by Go),
+	// but wrapping HTML element names in backticks reads more clearly in
+	// source and renders as inline code in HTML output.
+	findings := scanRawHTMLLikeScalars(doc.Data)
+	if len(findings) > 0 {
+		sort.Strings(findings)
+		fmt.Printf("⚠ %d raw HTML-tag-like pattern(s) in scalar value(s):\n", len(findings))
+		for _, f := range findings {
+			fmt.Printf("  - %s\n", f)
+		}
+		fmt.Println("  (neutralized at HTML render time; consider wrapping in backticks for readability)")
+	}
+}
+
+// rawHTMLTagRe matches `<word…>` or `</word…>` sequences that the HTML
+// parser would interpret as a tag. Conservative: requires an alphabetic
+// character right after the `<` or `</` so we don't flag math/comparisons.
+var rawHTMLTagRe = regexp.MustCompile(`<\/?[A-Za-z][^<>]*>`)
+
+// scanRawHTMLLikeScalars walks the frontmatter data and returns "path: snippet"
+// findings for any string scalar containing a raw HTML-tag-like pattern.
+func scanRawHTMLLikeScalars(data map[string]any) []string {
+	var out []string
+	var walk func(prefix string, v any)
+	walk = func(prefix string, v any) {
+		switch val := v.(type) {
+		case string:
+			if m := rawHTMLTagRe.FindString(val); m != "" {
+				out = append(out, fmt.Sprintf("%s: %q", prefix, m))
+			}
+		case map[string]any:
+			for k, child := range val {
+				p := k
+				if prefix != "" {
+					p = prefix + "." + k
+				}
+				walk(p, child)
+			}
+		case []any:
+			for i, child := range val {
+				walk(fmt.Sprintf("%s[%d]", prefix, i), child)
+			}
+		}
+	}
+	for k, v := range data {
+		walk(k, v)
+	}
+	return out
 }
 
 func hasFlag(args []string, flag string) bool {

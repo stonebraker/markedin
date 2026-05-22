@@ -3,6 +3,9 @@ package markedin
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -274,6 +277,48 @@ func TestEach(t *testing.T) {
 		src := miWithBody("items:\n  - x", "{{#each items}}{{@first}},{{@last}}{{/each}}")
 		assertEqual(t, mustRender(t, src), "true,true")
 	})
+
+	// ─── Scope: no fall-through to outer/root (SPEC.md 0.4.3) ─────────────
+
+	t.Run("{{key}} inside #each does NOT fall through to root when item lacks key", func(t *testing.T) {
+		src := miWithBody(
+			"theme: dark\nitems:\n  - id: a\n  - id: b",
+			"{{#each items}}[{{id}}={{theme}}]{{/each}}",
+		)
+		assertEqual(t, mustRender(t, src), "[a=][b=]")
+	})
+
+	t.Run("{{#if key}} inside #each does NOT fall through to root", func(t *testing.T) {
+		src := miWithBody(
+			"breakpoints:\n  - name: xs\nitems:\n  - id: a\n  - id: b\n    breakpoints:\n      - xs",
+			"{{#each items}}{{id}}{{#if breakpoints}}/{{breakpoints}}{{/if}};{{/each}}",
+		)
+		assertEqual(t, mustRender(t, src), "a;b/xs;")
+	})
+
+	t.Run("nested #each — inner loop does NOT see outer-iteration fields", func(t *testing.T) {
+		src := miWithBody(
+			"rows:\n  - tag: A\n    cells:\n      - n: 1\n      - n: 2",
+			"{{#each rows}}{{#each cells}}({{n}}|{{tag}}){{/each}}{{/each}}",
+		)
+		assertEqual(t, mustRender(t, src), "(1|)(2|)")
+	})
+
+	t.Run("nested #each — inner loop does NOT find root fields either", func(t *testing.T) {
+		src := miWithBody(
+			"theme: dark\nrows:\n  - cells:\n      - n: 1",
+			"{{#each rows}}{{#each cells}}[{{n}}|{{theme}}]{{/each}}{{/each}}",
+		)
+		assertEqual(t, mustRender(t, src), "[1|]")
+	})
+
+	t.Run("intrinsic iteration vars stay available", func(t *testing.T) {
+		src := miWithBody(
+			"items:\n  - a\n  - b",
+			"{{#each items}}{{@index}}:{{this}}/{{@first}}/{{@last}};{{/each}}",
+		)
+		assertEqual(t, mustRender(t, src), "0:a/true/false;1:b/false/true;")
+	})
 }
 
 // ─── #if ────────────────────────────────────────────────────────────────────
@@ -529,5 +574,100 @@ func assertNotContains(t *testing.T, haystack, needle string) {
 	t.Helper()
 	if strings.Contains(haystack, needle) {
 		t.Fatalf("expected output NOT to contain %q, got:\n%s", needle, haystack)
+	}
+}
+
+// ─── Shared cross-parser fixtures + examples-sweep (SPEC.md 0.4.3) ─────────
+
+func TestSharedFixtures(t *testing.T) {
+	fixtures := filepath.Join("..", "..", "fixtures")
+	names := []string{"each-scope-no-fallback", "code-block-interpolation", "raw-html-in-scalar"}
+	for _, name := range names {
+		t.Run(name+" render() byte-identical to expected.md", func(t *testing.T) {
+			src, err := os.ReadFile(filepath.Join(fixtures, name+".mi"))
+			if err != nil {
+				t.Fatalf("read .mi: %v", err)
+			}
+			want, err := os.ReadFile(filepath.Join(fixtures, name+".expected.md"))
+			if err != nil {
+				t.Fatalf("read .expected.md: %v", err)
+			}
+			got := mustRender(t, string(src))
+			if got != string(want) {
+				t.Errorf("fixture mismatch for %s:\n--- want ---\n%s\n--- got ---\n%s", name, want, got)
+			}
+		})
+	}
+}
+
+func TestSharedFixturesHTMLSafety(t *testing.T) {
+	fixtures := filepath.Join("..", "..", "fixtures")
+
+	t.Run("raw-html-in-scalar: no live tags reach HTML output", func(t *testing.T) {
+		src, _ := os.ReadFile(filepath.Join(fixtures, "raw-html-in-scalar.mi"))
+		html, err := RenderHTMLFrag(string(src))
+		if err != nil {
+			t.Fatalf("RenderHTMLFrag: %v", err)
+		}
+		// Go (goldmark) strips raw HTML and replaces with <!-- raw HTML omitted -->.
+		// Either way: no real <title>, <script>, or <b> tags reach the output.
+		for _, tag := range []string{`<title\b`, `<script\b`, `<b\b`} {
+			if matched, _ := regexp.MatchString(tag, html); matched {
+				t.Errorf("expected no raw tag matching %s in HTML, got:\n%s", tag, html)
+			}
+		}
+	})
+
+	t.Run("code-block-interpolation: no double-escape regression", func(t *testing.T) {
+		src, _ := os.ReadFile(filepath.Join(fixtures, "code-block-interpolation.mi"))
+		html, err := RenderHTMLFrag(string(src))
+		if err != nil {
+			t.Fatalf("RenderHTMLFrag: %v", err)
+		}
+		if strings.Contains(html, "&amp;quot;") {
+			t.Errorf("&amp;quot; double-escape regression detected:\n%s", html)
+		}
+		if !strings.Contains(html, `<code class="language-json">`) {
+			t.Errorf("expected fenced code block; got:\n%s", html)
+		}
+	})
+}
+
+func TestExamplesSweep(t *testing.T) {
+	examples := filepath.Join("..", "..", "examples")
+	entries, err := os.ReadDir(examples)
+	if err != nil {
+		t.Fatalf("read examples/: %v", err)
+	}
+	any := false
+	for _, e := range entries {
+		if !strings.HasSuffix(e.Name(), ".mi") {
+			continue
+		}
+		any = true
+		name := e.Name()
+		t.Run(name+" renders safely", func(t *testing.T) {
+			src, err := os.ReadFile(filepath.Join(examples, name))
+			if err != nil {
+				t.Fatalf("read: %v", err)
+			}
+			html, err := RenderHTMLFrag(string(src))
+			if err != nil {
+				t.Fatalf("RenderHTMLFrag: %v", err)
+			}
+			for _, bad := range []string{"&amp;quot;", "&amp;lt;", "&amp;gt;"} {
+				if strings.Contains(html, bad) {
+					t.Errorf("double-escape artifact %q in %s:\n%s", bad, name, html)
+				}
+			}
+			for _, tag := range []string{`<title\b`, `<script\b`} {
+				if matched, _ := regexp.MatchString(tag, html); matched {
+					t.Errorf("raw %s tag in HTML for %s:\n%s", tag, name, html)
+				}
+			}
+		})
+	}
+	if !any {
+		t.Skip("no .mi files under examples/")
 	}
 }

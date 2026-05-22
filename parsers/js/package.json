@@ -1,6 +1,6 @@
 {
   "name": "markedin-parser",
-  "version": "0.4.1",
+  "version": "0.4.3",
   "description": "The Markedin parser for .mi files — structured data (YAML) plus a Markdown document that renders from it.",
   "main": "parse.js",
   "files": [
@@ -35,5 +35,8 @@
   "dependencies": {
     "js-yaml": "^4.1.1",
     "marked": "^17.0.4"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.0"
   }
 }

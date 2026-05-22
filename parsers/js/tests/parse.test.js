@@ -284,6 +284,49 @@ describe('{{#each}}', () => {
     const src = miWithBody('items:\n  - x', '{{#each items}}{{@first}},{{@last}}{{/each}}');
     assert.equal(render(src), 'true,true');
   });
+
+  // ─── Scope: no fall-through to outer/root (SPEC.md 0.4.3) ─────────────────
+  test('{{key}} inside #each does NOT fall through to root when item lacks key', () => {
+    const src = miWithBody(
+      'theme: dark\nitems:\n  - id: a\n  - id: b',
+      '{{#each items}}[{{id}}={{theme}}]{{/each}}'
+    );
+    assert.equal(render(src), '[a=][b=]');
+  });
+
+  test('{{#if key}} inside #each does NOT fall through to root when item lacks key', () => {
+    // Load-bearing failure mode: root-level `breakpoints` was bleeding into
+    // iteration items that lacked it, rendering a JSON wall.
+    const src = miWithBody(
+      'breakpoints:\n  - name: xs\nitems:\n  - id: a\n  - id: b\n    breakpoints:\n      - xs',
+      '{{#each items}}{{id}}{{#if breakpoints}}/{{breakpoints}}{{/if}};{{/each}}'
+    );
+    assert.equal(render(src), 'a;b/xs;');
+  });
+
+  test('nested #each — inner loop does NOT see outer-iteration fields', () => {
+    const src = miWithBody(
+      'rows:\n  - tag: A\n    cells:\n      - n: 1\n      - n: 2',
+      '{{#each rows}}{{#each cells}}({{n}}|{{tag}}){{/each}}{{/each}}'
+    );
+    assert.equal(render(src), '(1|)(2|)');
+  });
+
+  test('nested #each — inner loop does NOT find root fields either', () => {
+    const src = miWithBody(
+      'theme: dark\nrows:\n  - cells:\n      - n: 1',
+      '{{#each rows}}{{#each cells}}[{{n}}|{{theme}}]{{/each}}{{/each}}'
+    );
+    assert.equal(render(src), '[1|]');
+  });
+
+  test('intrinsic iteration vars ({{this}}, {{@index}}, {{@first}}, {{@last}}) stay available', () => {
+    const src = miWithBody(
+      'items:\n  - a\n  - b',
+      '{{#each items}}{{@index}}:{{this}}/{{@first}}/{{@last}};{{/each}}'
+    );
+    assert.equal(render(src), '0:a/true/false;1:b/false/true;');
+  });
 });
 
 // ─── #if ──────────────────────────────────────────────────────────────────────
@@ -439,6 +482,71 @@ describe('renderHtmlFrag', () => {
     const html = renderHtmlFrag(src);
     assert.ok(html.includes('<table>'));
     assert.ok(html.includes('<td>1</td>'));
+  });
+
+  // ─── HTML safety (SPEC.md 0.4.3) ──────────────────────────────────────────
+  // These are the regression tests that would have caught both the original
+  // <title>-destroys-body bug AND the 0.4.2 code-block double-escape bug.
+
+  test('substituted <title> is escaped, not passed through as raw tag', () => {
+    // The load-bearing original bug: <title> activates HTML5 raw-text content
+    // model and silently destroys body content. Must NOT reach the DOM as a
+    // real tag.
+    const src = miWithBody('role: "Document <title> for the page."', '- **Role:** {{role}}');
+    const html = renderHtmlFrag(src);
+    assert.ok(html.includes('&lt;title&gt;'), 'expected escaped &lt;title&gt;');
+    assert.ok(!/<title\b/.test(html), 'no raw <title> tag in HTML');
+  });
+
+  test('substituted <script> is escaped, not executable', () => {
+    const src = miWithBody('payload: "<script>alert(1)</script>"', '{{payload}}');
+    const html = renderHtmlFrag(src);
+    assert.ok(html.includes('&lt;script&gt;'), 'expected escaped &lt;script&gt;');
+    assert.ok(!/<script\b/.test(html), 'no raw <script> tag in HTML');
+  });
+
+  test('JSON substituted inside fenced code block is NOT double-escaped', () => {
+    // The 0.4.2 regression: {"id":"..."} substituted via {{body}} into a
+    // ```json block ended up as {&amp;quot;id&amp;quot;:...} — visible &quot;
+    // text in the rendered page. After 0.4.3, code-block content is escaped
+    // exactly once (marked's standard code-block escape), and the browser
+    // decodes &quot; back to a literal " on display.
+    const src =
+      '---\nbody: \'{"id": "usr_01", "role": "user"}\'\n---\n\n```json\n{{body}}\n```\n';
+    const html = renderHtmlFrag(src);
+    // The actual HTML payload contains single-level &quot; entities, NOT
+    // double-escaped &amp;quot;.
+    assert.ok(html.includes('&quot;id&quot;'), 'single-level &quot; entity in HTML');
+    assert.ok(!html.includes('&amp;quot;'), 'no double-escaped &amp;quot;');
+    // And the code block opened correctly.
+    assert.ok(html.includes('<code class="language-json">'));
+  });
+
+  test('intentional <div> in markdown body is escaped at render time', () => {
+    // Body-authored raw HTML (not substituted) is also escaped by the
+    // renderer — JS now matches Go/Python behavior here.
+    const src = miWithBody('', '<div class="callout">x</div>');
+    const html = renderHtmlFrag(src);
+    assert.ok(!/<div\b/.test(html), 'no raw <div> in HTML');
+    assert.ok(html.includes('&lt;div'), 'escaped &lt;div');
+  });
+
+  test('autolinks and bare URLs still render as <a> tags', () => {
+    // Renderer override targets the html token only; link tokens are
+    // unaffected.
+    const src = miWithBody('', 'Bare https://example.com and <https://example.com>.');
+    const html = renderHtmlFrag(src);
+    assert.ok(html.includes('href="https://example.com"'));
+    assert.ok(!/&lt;a /.test(html), 'no escaped &lt;a&gt; — links survive');
+  });
+
+  test('Markdown-significant chars in YAML values still render as markdown', () => {
+    // No template-time escape — substitution is raw. Markdown inside YAML
+    // values continues to render.
+    const src = miWithBody('summary: "**bold** _italic_"', '{{summary}}');
+    const html = renderHtmlFrag(src);
+    assert.ok(html.includes('<strong>bold</strong>'));
+    assert.ok(html.includes('<em>italic</em>'));
   });
 });
 
@@ -655,4 +763,60 @@ describe('CLI', () => {
     assert.notEqual(code, 0);
     assert.ok(stderr.toLowerCase().includes('not found'));
   });
+});
+
+// ─── Shared cross-parser fixtures (fixtures/) ────────────────────────────────
+
+describe('shared fixtures — render() cross-parser equivalence', () => {
+  const FIXTURES = path.join(__dirname, '..', '..', '..', 'fixtures');
+  const NAMES = ['each-scope-no-fallback', 'code-block-interpolation', 'raw-html-in-scalar'];
+  for (const name of NAMES) {
+    test(`${name}.mi render() matches ${name}.expected.md`, () => {
+      const src = fs.readFileSync(path.join(FIXTURES, `${name}.mi`), 'utf8');
+      const want = fs.readFileSync(path.join(FIXTURES, `${name}.expected.md`), 'utf8');
+      assert.equal(render(src), want);
+    });
+  }
+});
+
+describe('shared fixtures — renderHtmlFrag() HTML safety', () => {
+  const FIXTURES = path.join(__dirname, '..', '..', '..', 'fixtures');
+  test('raw-html-in-scalar: no raw <title> / <script> / <b> in rendered HTML', () => {
+    const src = fs.readFileSync(path.join(FIXTURES, 'raw-html-in-scalar.mi'), 'utf8');
+    const html = renderHtmlFrag(src);
+    assert.ok(!/<title\b/.test(html), 'no raw <title>');
+    assert.ok(!/<script\b/.test(html), 'no raw <script>');
+    assert.ok(!/<b\b/.test(html), 'no raw <b>');
+    assert.ok(html.includes('&lt;title&gt;'), 'has escaped &lt;title&gt;');
+    assert.ok(html.includes('<strong>bold</strong>'), 'markdown formatting in YAML still renders');
+  });
+  test('code-block-interpolation: code-block JSON renders cleanly without double-escape', () => {
+    const src = fs.readFileSync(path.join(FIXTURES, 'code-block-interpolation.mi'), 'utf8');
+    const html = renderHtmlFrag(src);
+    assert.ok(html.includes('&quot;id&quot;'), 'single-level &quot; entity inside code block');
+    assert.ok(!html.includes('&amp;quot;'), 'no double-escape regression');
+    assert.ok(html.includes('<code class="language-json">'), 'code block opened with language class');
+  });
+});
+
+// ─── Examples-sweep regression test ──────────────────────────────────────────
+// Renders every .mi under examples/ through renderHtmlFrag and asserts no
+// double-escape artifacts. Cheap, catches whole classes of bugs (the kind
+// 0.4.2 shipped because no test exercised the user surface).
+
+describe('examples-sweep — every examples/*.mi renders safely', () => {
+  const EXAMPLES = path.join(__dirname, '..', '..', '..', 'examples');
+  const files = fs.readdirSync(EXAMPLES).filter(f => f.endsWith('.mi'));
+  assert.ok(files.length > 0, 'examples/ has at least one .mi to sweep');
+  for (const f of files) {
+    test(`${f} has no double-escape artifacts in HTML`, () => {
+      const src = fs.readFileSync(path.join(EXAMPLES, f), 'utf8');
+      const html = renderHtmlFrag(src);
+      assert.ok(!html.includes('&amp;quot;'), 'no &amp;quot; double-escape');
+      assert.ok(!html.includes('&amp;lt;'), 'no &amp;lt; double-escape');
+      assert.ok(!html.includes('&amp;gt;'), 'no &amp;gt; double-escape');
+      assert.ok(!/<title\b/.test(html), 'no raw <title>');
+      assert.ok(!/<script\b/.test(html), 'no raw <script>');
+    });
+  }
 });

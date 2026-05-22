@@ -1,0 +1,12 @@
+---
+role: "The HTML <title> element for the page."
+script_payload: "<script>alert(1)</script>"
+fragment: "Inline <b>bold</b> example"
+markdown_value: "**bold** _italic_"
+---
+# HTML safety
+
+- **Role:** {{role}}
+- **Payload:** {{script_payload}}
+- **Fragment:** {{fragment}}
+- **Markdown in YAML:** {{markdown_value}}

@@ -1,0 +1,21 @@
+---
+endpoint: /api/v2/users
+method: POST
+body_201: '{"id": "usr_01HZ...", "email": "...", "role": "user"}'
+body_400: '{"error": "validation_failed", "fields": [...]}'
+---
+# `{{method}} {{endpoint}}`
+
+## Responses
+
+### 201
+
+```json
+{{body_201}}
+```
+
+### 400
+
+```json
+{{body_400}}
+```

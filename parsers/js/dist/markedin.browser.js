@@ -4053,9 +4053,17 @@ Please report this to https://github.com/markedjs/marked.`, e) {
   // parse.js
   var require_parse = __commonJS({
     "parse.js"(exports, module) {
-      var SPEC_VERSION = "0.4.0";
+      var SPEC_VERSION = "0.4.3";
       var yaml = require_js_yaml();
-      var { marked } = (init_marked_esm(), __toCommonJS(marked_esm_exports));
+      var { marked, Marked } = (init_marked_esm(), __toCommonJS(marked_esm_exports));
+      var markedSafe = new Marked();
+      markedSafe.use({
+        renderer: {
+          html(token) {
+            return token.text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+          }
+        }
+      });
       function parse(source) {
         const EMPTY_FM_RE = /^---\r?\n---\r?\n?([\s\S]*)$/;
         const emptyMatch = source.match(EMPTY_FM_RE);
@@ -4175,12 +4183,12 @@ Please report this to https://github.com/markedjs/marked.`, e) {
       }
       function renderHtmlFrag(source) {
         const md = render(source);
-        return marked.parse(md, { gfm: true });
+        return markedSafe.parse(md, { gfm: true });
       }
       function renderHtml(source, { embed = false } = {}) {
         const { data, body } = parse(source);
         const rendered = renderTemplate(body, data);
-        const htmlBody = marked.parse(rendered, { gfm: true });
+        const htmlBody = markedSafe.parse(rendered, { gfm: true });
         const title = data.title || "";
         let dataBlock = "";
         if (embed) {
@@ -4245,7 +4253,7 @@ Please report this to https://github.com/markedjs/marked.`, e) {
             const arr = resolvePath(ctx, key);
             if (!Array.isArray(arr)) return protect("");
             return protect(arr.map((item, i) => {
-              const itemCtx = { ...ctx, this: item, "@index": i, "@first": i === 0, "@last": i === arr.length - 1 };
+              const itemCtx = { this: item, "@index": i, "@first": i === 0, "@last": i === arr.length - 1 };
               if (item && typeof item === "object" && !Array.isArray(item)) Object.assign(itemCtx, item);
               return renderTemplate(inner, itemCtx, false);
             }).join(""));

@@ -12,10 +12,30 @@
  *       {{> partial_key}}             — inline another frontmatter string as markdown
  */
 
-const SPEC_VERSION = '0.4.0';
+const SPEC_VERSION = '0.4.3';
 
 const yaml = require('js-yaml');
-const { marked } = require('marked');
+const { marked, Marked } = require('marked');
+
+// ─── HTML safety per SPEC.md 0.4.3 ───────────────────────────────────────────
+// Raw HTML tokens in the markdown body are escaped to entities at HTML-render
+// time. Code-block contents are unaffected (marked tokenizes those as `code`,
+// not `html`). Autolinks and bare URLs remain as <a> tags (link tokens).
+// Substitution itself is raw — escape happens here, at the renderer boundary.
+
+const markedSafe = new Marked();
+markedSafe.use({
+  renderer: {
+    html(token) {
+      return token.text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    },
+  },
+});
 
 // ─── Frontmatter extraction ───────────────────────────────────────────────────
 
@@ -178,13 +198,13 @@ function render(source, { embed = false } = {}) {
 
 function renderHtmlFrag(source) {
   const md = render(source);
-  return marked.parse(md, { gfm: true });
+  return markedSafe.parse(md, { gfm: true });
 }
 
 function renderHtml(source, { embed = false } = {}) {
   const { data, body } = parse(source);
   const rendered = renderTemplate(body, data);
-  const htmlBody = marked.parse(rendered, { gfm: true });
+  const htmlBody = markedSafe.parse(rendered, { gfm: true });
   const title = data.title || '';
   let dataBlock = '';
   if (embed) {
@@ -251,10 +271,13 @@ function renderTemplate(template, ctx, _isRoot) {
     /\{\{#each [\w.[\]]+\}\}/g,
     '{{/each}}',
     (key, inner) => {
+      // Scope per SPEC.md 0.4.3: lookups inside the block resolve against
+      // the current iteration item only — no fall-through to an enclosing
+      // or root scope. itemCtx therefore intentionally does NOT spread ctx.
       const arr = resolvePath(ctx, key);
       if (!Array.isArray(arr)) return protect('');
       return protect(arr.map((item, i) => {
-        const itemCtx = { ...ctx, this: item, '@index': i, '@first': i === 0, '@last': i === arr.length - 1 };
+        const itemCtx = { this: item, '@index': i, '@first': i === 0, '@last': i === arr.length - 1 };
         if (item && typeof item === 'object' && !Array.isArray(item)) Object.assign(itemCtx, item);
         return renderTemplate(inner, itemCtx, false);
       }).join(''));

@@ -19,7 +19,7 @@ import (
 )
 
 // SpecVersion is the markedin spec version this parser implements.
-const SpecVersion = "0.4.0"
+const SpecVersion = "0.4.3"
 
 // Document holds the parsed frontmatter and body of a .mi file.
 type Document struct {
@@ -278,6 +278,9 @@ func renderTemplateInner(template string, ctx map[string]any, rs *renderState) s
 	})
 
 	// 1. {{#each key}} … {{/each}}
+	// Scope per SPEC.md 0.4.3: lookups inside the block resolve against the
+	// current iteration item only — no fall-through to an enclosing or root
+	// scope. itemCtx therefore starts fresh, not from a copy of ctx.
 	out = processBlocks(out, reEachOpen, reEachNested, "{{/each}}", func(key, inner string) string {
 		val := resolvePath(ctx, key)
 		arr, ok := val.([]any)
@@ -286,7 +289,7 @@ func renderTemplateInner(template string, ctx map[string]any, rs *renderState) s
 		}
 		var sb strings.Builder
 		for i, item := range arr {
-			itemCtx := copyMap(ctx)
+			itemCtx := make(map[string]any)
 			itemCtx["this"] = item
 			itemCtx["@index"] = i
 			itemCtx["@first"] = i == 0
@@ -493,12 +496,4 @@ func formatValue(val any) string {
 	default:
 		return fmt.Sprintf("%v", v)
 	}
-}
-
-func copyMap(m map[string]any) map[string]any {
-	cp := make(map[string]any, len(m))
-	for k, v := range m {
-		cp[k] = v
-	}
-	return cp
 }

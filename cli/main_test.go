@@ -212,6 +212,49 @@ func TestCLI(t *testing.T) {
 		assertNotEqual(t, r.code, 0)
 	})
 
+	t.Run("check warns on raw HTML-tag-like patterns in scalar values", func(t *testing.T) {
+		bad := tmpMi(t, miWithBody(
+			"role: \"Document <title> for the page.\"\nnested:\n  s: \"<script>\"\nclean: \"no html here\"",
+			"# {{role}}",
+		))
+		r := run("check", bad)
+		assertEqual(t, r.code, 0) // warnings only, not errors
+		assertContains(t, r.stdout, "⚠")
+		assertContains(t, r.stdout, "raw HTML-tag-like pattern")
+		assertContains(t, r.stdout, "role:")
+		assertContains(t, r.stdout, "<title>")
+		assertContains(t, r.stdout, "nested.s:")
+		assertContains(t, r.stdout, "<script>")
+		assertContains(t, r.stdout, "neutralized at HTML render time")
+	})
+
+	t.Run("check is silent on scalars with no HTML-tag-like patterns", func(t *testing.T) {
+		clean := tmpMi(t, miWithBody("a: 1\nb: hello\nc:\n  - one\n  - two", "# body"))
+		r := run("check", clean)
+		assertEqual(t, r.code, 0)
+		if strings.Contains(r.stdout, "⚠") {
+			t.Errorf("expected no warnings, got: %s", r.stdout)
+		}
+	})
+
+	t.Run("check does NOT flag math/comparison-style angle brackets", func(t *testing.T) {
+		// `<` followed by space or digit isn't a tag — don't false-positive.
+		clean := tmpMi(t, miWithBody("note: \"a < b and 1 > 0\"", "# body"))
+		r := run("check", clean)
+		assertEqual(t, r.code, 0)
+		if strings.Contains(r.stdout, "⚠") {
+			t.Errorf("expected no warnings for math, got: %s", r.stdout)
+		}
+	})
+
+	t.Run("check finds HTML patterns inside array items", func(t *testing.T) {
+		bad := tmpMi(t, miWithBody("items:\n  - clean\n  - \"<b>bold</b>\"", "# body"))
+		r := run("check", bad)
+		assertEqual(t, r.code, 0)
+		assertContains(t, r.stdout, "⚠")
+		assertContains(t, r.stdout, "items[1]:")
+	})
+
 	// --help
 	t.Run("--help exits 0 and prints usage", func(t *testing.T) {
 		r := run("--help")
